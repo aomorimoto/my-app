@@ -29,11 +29,16 @@ app.get("/", async (req, res) => {
 // ユーザー追加：フォームから送られた名前を DB に保存する
 app.post("/users", async (req, res) => {
   const name = req.body.name;
+  const age = req.body.age ? Number(req.body.age) : null; // 数値に変換するぞ
+  
   if (name) {
-    await prisma.user.create({ data: { name } });
+    await prisma.user.create({ 
+      data: { name, age } 
+    });
   }
   res.redirect("/");
 });
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
