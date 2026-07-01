@@ -1,7 +1,5 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
+// タスク管理アプリの Prisma スキーマ
+// docs: https://pris.ly/d/prisma-schema
 
 generator client {
   provider = "prisma-client"
@@ -12,8 +10,63 @@ datasource db {
   provider = "postgresql"
 }
 
+// アプリ利用者アカウント
 model User {
-  id   Int    @id @default(autoincrement())
-  name String
-  age  Int?
+  id         Int        @id @default(autoincrement())
+  email      String     @unique
+  password   String // bcrypt でハッシュ化したパスワード
+  name       String?
+  createdAt  DateTime   @default(now())
+  tasks      Task[]
+  categories Category[]
+}
+
+// タスクを分類するカテゴリ（ユーザーごとに作成）
+model Category {
+  id     Int    @id @default(autoincrement())
+  name   String
+  color  String @default("#888888") // UI 表示用の色（HEX）
+  userId Int
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks  Task[]
+}
+
+// タスク
+model Task {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  status      Status    @default(TODO)
+  priority    Priority  @default(MEDIUM)
+  dueDate     DateTime?
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  userId      Int
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+// express-session のセッション保管用テーブル（connect-pg-simple 互換）
+// Prisma に管理させることで起動時の自動 DDL を不要にし、スキーマのドリフトを防ぐ
+model Session {
+  sid    String   @id
+  sess   Json     @db.Json
+  expire DateTime @db.Timestamp(6)
+
+  @@index([expire], map: "IDX_session_expire")
+  @@map("session")
+}
+
+enum Status {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+// 並び順が「高 → 低」になるように定義（enum の定義順 = DB のソート順）
+enum Priority {
+  HIGH
+  MEDIUM
+  LOW
 }

@@ -1,44 +1,62 @@
 import "dotenv/config";
 import express from "express";
-import { Pool } from "pg";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "./generated/prisma/client";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
-});
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter, log: ["query"] });
+import { pool } from "./src/db";
+import { loadUser, requireAuth } from "./src/middleware";
+import { authRouter } from "./src/routes/auth";
+import { tasksRouter } from "./src/routes/tasks";
+import { categoriesRouter } from "./src/routes/categories";
+
+const SESSION_SECRET = process.env.SESSION_SECRET;
+if (!SESSION_SECRET) {
+  throw new Error("環境変数 SESSION_SECRET が設定されていません。");
+}
+
+// Render などのホスティングでは自動で本番フラグが立つ
+const isProd = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
 
 const app = express();
 const PORT = process.env.PORT || 8888;
 
-// EJS を使って画面を表示するための設定
+// EJS のテンプレート設定
 app.set("view engine", "ejs");
 app.set("views", "./views");
-// フォームから送られたデータを受け取れるようにする設定
+
+// 本番（Render）はプロキシ配下なので secure cookie を効かせるために必要
+if (isProd) app.set("trust proxy", 1);
+
+// 静的ファイル（CSS など）と、フォーム本体の受け取り
+app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
 
-// トップページ：ユーザー一覧を表示する
-app.get("/", async (req, res) => {
-  const users = await prisma.user.findMany();
-  res.render("index", { users });
-});
+// セッション（Postgres に保存）
+const PgSession = connectPgSimple(session);
+app.use(
+  session({
+    store: new PgSession({ pool, tableName: "session", createTableIfMissing: false }),
+    secret: SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: isProd,
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 日
+    },
+  })
+);
 
-// ユーザー追加：フォームから送られた名前を DB に保存する
-app.post("/users", async (req, res) => {
-  const name = req.body.name;
-  const age = req.body.age ? Number(req.body.age) : null; // 数値に変換するぞ
-  
-  if (name) {
-    await prisma.user.create({ 
-      data: { name, age } 
-    });
-  }
-  res.redirect("/");
-});
+// ログインユーザーをビューに渡す
+app.use(loadUser);
 
+// 認証関連（ログイン不要）
+app.use("/", authRouter);
+
+// 以降はログイン必須
+app.use("/", requireAuth, tasksRouter);
+app.use("/", requireAuth, categoriesRouter);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);

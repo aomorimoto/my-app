@@ -1,0 +1,18 @@
+<%- include('partials/header', { title: 'ログイン', currentUser }) %>
+
+<div class="auth-card card">
+  <h1>ログイン</h1>
+  <% if (error) { %><p class="error"><%= error %></p><% } %>
+  <form action="/login" method="post" class="form">
+    <label>メールアドレス
+      <input type="email" name="email" value="<%= values.email %>" required autofocus />
+    </label>
+    <label>パスワード
+      <input type="password" name="password" required />
+    </label>
+    <button type="submit" class="btn-primary">ログイン</button>
+  </form>
+  <p class="muted">アカウントが無い方は <a href="/signup">新規登録</a></p>
+</div>
+
+<%- include('partials/footer') %>
