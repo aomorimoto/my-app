@@ -2,3 +2,6 @@ node_modules/
 .env
 generated/prisma
 info/
+client/node_modules/
+client/dist/
+cookie.txt

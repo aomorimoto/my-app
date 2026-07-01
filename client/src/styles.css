@@ -114,6 +114,10 @@ button {
 .btn-primary:hover {
   background: var(--primary-dark);
 }
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .btn-small {
   display: inline-block;
   background: #f1f5f9;

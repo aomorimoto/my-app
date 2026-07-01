@@ -1,13 +1,10 @@
 import "dotenv/config";
+import path from "node:path";
 import express from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 
 import { pool } from "./src/db";
-import { loadUser, requireAuth } from "./src/middleware";
-import { authRouter } from "./src/routes/auth";
-import { tasksRouter } from "./src/routes/tasks";
-import { categoriesRouter } from "./src/routes/categories";
 import { apiRouter } from "./src/api/index";
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
@@ -21,17 +18,10 @@ const isProd = process.env.NODE_ENV === "production" || process.env.RENDER === "
 const app = express();
 const PORT = process.env.PORT || 8888;
 
-// EJS のテンプレート設定
-app.set("view engine", "ejs");
-app.set("views", "./views");
-
 // 本番（Render）はプロキシ配下なので secure cookie を効かせるために必要
 if (isProd) app.set("trust proxy", 1);
 
-// 静的ファイル（CSS など）と、リクエストボディの受け取り
-// urlencoded は EJS のフォーム用、json は /api の JSON リクエスト用（併存）
-app.use(express.static("public"));
-app.use(express.urlencoded({ extended: true }));
+// JSON リクエストボディ（/api 用）
 app.use(express.json());
 
 // セッション（Postgres に保存）
@@ -51,18 +41,19 @@ app.use(
   })
 );
 
-// ログインユーザーをビューに渡す
-app.use(loadUser);
-
-// JSON API（/api 配下）。EJS 画面とは独立して併存する。
+// JSON API（バックエンド層）。内部に 404 ハンドラを持つので /api/* は下の SPA fallback に落ちない
 app.use("/api", apiRouter);
 
-// 認証関連（ログイン不要）
-app.use("/", authRouter);
+// React SPA（フロントエンド層）のビルド成果物を配信
+const clientDist = path.resolve("client/dist");
+app.use(express.static(clientDist));
 
-// 以降はログイン必須
-app.use("/", requireAuth, tasksRouter);
-app.use("/", requireAuth, categoriesRouter);
+// SPA フォールバック: /api 以外の GET は index.html を返す
+// （Express 5 は path-to-regexp v8 で app.get("*") が使えないため最終ミドルウェアで対応）
+app.use((req, res, next) => {
+  if (req.method !== "GET") return next();
+  res.sendFile(path.join(clientDist, "index.html"));
+});
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
