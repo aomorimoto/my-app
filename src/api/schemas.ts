@@ -1,0 +1,63 @@
+import { z } from "zod";
+
+// 入力バリデーション用の zod スキーマ群。
+// 空文字は「未指定（null）」として扱い、日付や数値は文字列からの変換にも対応する。
+
+const statusEnum = z.enum(["TODO", "IN_PROGRESS", "DONE"]);
+const priorityEnum = z.enum(["HIGH", "MEDIUM", "LOW"]);
+
+// 期限: ISO 文字列 → Date、空文字/未指定 → null。
+// 空文字だけを null に前処理し、未指定（undefined）はそのまま残す（PATCH で「変更なし」と区別するため）。
+const dueDateField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z.coerce.date().nullable().optional()
+);
+
+// カテゴリID: 数値文字列 → number、空文字 → null（カテゴリ未設定）。
+const categoryIdField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z.coerce.number().int().positive().nullable().optional()
+);
+
+// 説明: 空文字 → null。
+const descriptionField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z.string().trim().max(2000).nullable().optional()
+);
+
+// --- 認証 ---
+
+export const signupSchema = z.object({
+  email: z.string().trim().toLowerCase().email("メールアドレスの形式が正しくありません。"),
+  password: z.string().min(8, "パスワードは8文字以上にしてください。"),
+  name: z.string().trim().max(100).optional(),
+});
+
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email("メールアドレスの形式が正しくありません。"),
+  password: z.string().min(1, "パスワードを入力してください。"),
+});
+
+// --- タスク ---
+
+export const taskCreateSchema = z.object({
+  title: z.string().trim().min(1, "タイトルを入力してください。").max(200),
+  description: descriptionField,
+  status: statusEnum.optional(),
+  priority: priorityEnum.optional(),
+  dueDate: dueDateField,
+  categoryId: categoryIdField,
+});
+
+// PATCH 用: 送られてきた項目だけ更新する（全項目を任意にする）。
+export const taskUpdateSchema = taskCreateSchema.partial();
+
+// --- カテゴリ ---
+
+export const categoryCreateSchema = z.object({
+  name: z.string().trim().min(1, "カテゴリ名を入力してください。").max(50),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
+    .optional(),
+});

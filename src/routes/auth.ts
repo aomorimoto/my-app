@@ -1,17 +1,12 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../db";
+import { DEFAULT_CATEGORIES } from "../domain/defaults";
 
 export const authRouter = Router();
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PASSWORD_MIN = 8;
-
-// 新規登録時に作る既定カテゴリ
-const DEFAULT_CATEGORIES = [
-  { name: "仕事", color: "#2563eb" },
-  { name: "個人", color: "#16a34a" },
-];
 
 // 新規登録フォーム
 authRouter.get("/signup", (req, res) => {

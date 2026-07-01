@@ -8,6 +8,7 @@ import { loadUser, requireAuth } from "./src/middleware";
 import { authRouter } from "./src/routes/auth";
 import { tasksRouter } from "./src/routes/tasks";
 import { categoriesRouter } from "./src/routes/categories";
+import { apiRouter } from "./src/api/index";
 
 const SESSION_SECRET = process.env.SESSION_SECRET;
 if (!SESSION_SECRET) {
@@ -27,9 +28,11 @@ app.set("views", "./views");
 // 本番（Render）はプロキシ配下なので secure cookie を効かせるために必要
 if (isProd) app.set("trust proxy", 1);
 
-// 静的ファイル（CSS など）と、フォーム本体の受け取り
+// 静的ファイル（CSS など）と、リクエストボディの受け取り
+// urlencoded は EJS のフォーム用、json は /api の JSON リクエスト用（併存）
 app.use(express.static("public"));
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
 
 // セッション（Postgres に保存）
 const PgSession = connectPgSimple(session);
@@ -50,6 +53,9 @@ app.use(
 
 // ログインユーザーをビューに渡す
 app.use(loadUser);
+
+// JSON API（/api 配下）。EJS 画面とは独立して併存する。
+app.use("/api", apiRouter);
 
 // 認証関連（ログイン不要）
 app.use("/", authRouter);
