@@ -1,7 +1,12 @@
 import { apiFetch } from "./client";
-import type { User } from "../types";
+import type { User, ActiveWorkspace } from "../types";
 
-export const fetchMe = () => apiFetch<{ user: User | null }>("/api/auth/me");
+export interface MeResponse {
+  user: User | null;
+  activeWorkspace: ActiveWorkspace | null;
+}
+
+export const fetchMe = () => apiFetch<MeResponse>("/api/auth/me");
 
 export const login = (body: { email: string; password: string }) =>
   apiFetch<{ user: User }>("/api/auth/login", { method: "POST", body });

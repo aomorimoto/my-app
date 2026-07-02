@@ -1,17 +1,26 @@
 export type Status = "TODO" | "IN_PROGRESS" | "DONE";
 export type Priority = "HIGH" | "MEDIUM" | "LOW";
 
+export type Role = "OWNER" | "ADMIN" | "MEMBER";
+
 export interface User {
   id: number;
   email: string;
   name: string | null;
 }
 
+// アクティブなワークスペース（/api/auth/me が返す）
+export interface ActiveWorkspace {
+  id: number;
+  name: string;
+  role: Role;
+}
+
 export interface Category {
   id: number;
   name: string;
   color: string;
-  userId: number;
+  workspaceId: number;
   _count?: { tasks: number };
 }
 
@@ -25,7 +34,10 @@ export interface Task {
   dueDate: string | null;
   categoryId: number | null;
   category?: Category | null;
-  userId: number;
+  workspaceId: number;
+  creatorId: number;
+  assigneeId: number | null; // 担当者。UI 連携は Phase 3b
+  assignee?: User | null;
   createdAt: string;
   updatedAt: string;
 }

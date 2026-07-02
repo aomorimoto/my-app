@@ -10,7 +10,12 @@ export function useLogin() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: login,
-    onSuccess: (data) => qc.setQueryData(["me"], { user: data.user }),
+    onSuccess: (data) => {
+      // 認証状態を即時反映（ProtectedRoute のリダイレクト防止）。
+      // activeWorkspace は続く refetch（invalidate）で埋める。
+      qc.setQueryData(["me"], { user: data.user, activeWorkspace: null });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
 
@@ -18,7 +23,10 @@ export function useSignup() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: signup,
-    onSuccess: (data) => qc.setQueryData(["me"], { user: data.user }),
+    onSuccess: (data) => {
+      qc.setQueryData(["me"], { user: data.user, activeWorkspace: null });
+      qc.invalidateQueries({ queryKey: ["me"] });
+    },
   });
 }
 

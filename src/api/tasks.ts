@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../db";
+import { resolveWorkspace } from "../domain/workspace";
 import { taskCreateSchema, taskUpdateSchema } from "./schemas";
 import { HttpError, parseId } from "./http";
 
@@ -12,21 +13,21 @@ type Priority = (typeof PRIORITIES)[number];
 const isStatus = (v: unknown): v is Status => STATUSES.includes(v as Status);
 const isPriority = (v: unknown): v is Priority => PRIORITIES.includes(v as Priority);
 
-// 指定カテゴリが本人所有か検証する。未所有・不明なら 400。
-async function assertCategoryOwned(userId: number, categoryId: number) {
-  const owned = await prisma.category.findFirst({ where: { id: categoryId, userId } });
-  if (!owned) {
+// 指定カテゴリが対象ワークスペースのものか検証する。異なる/不明なら 400。
+async function assertCategoryInWorkspace(workspaceId: number, categoryId: number) {
+  const found = await prisma.category.findFirst({ where: { id: categoryId, workspaceId } });
+  if (!found) {
     throw new HttpError(400, "指定されたカテゴリが見つかりません。", "INVALID_CATEGORY");
   }
 }
 
 // タスク一覧（絞り込み・並び替え付き）
 apiTasksRouter.get("/", async (req, res) => {
-  const userId = req.session.userId!;
+  const { workspaceId } = await resolveWorkspace(req);
   const { status, priority, category, sort } = req.query;
 
-  // 絞り込み条件を組み立てる（本人のタスクに限定）
-  const where: any = { userId };
+  // 絞り込み条件を組み立てる（ワークスペースのタスクに限定）
+  const where: any = { workspaceId };
   if (isStatus(status)) where.status = status;
   if (isPriority(priority)) where.priority = priority;
   if (category && !Number.isNaN(Number(category))) where.categoryId = Number(category);
@@ -51,9 +52,10 @@ apiTasksRouter.get("/", async (req, res) => {
 
 // タスク作成
 apiTasksRouter.post("/", async (req, res) => {
+  const { workspaceId } = await resolveWorkspace(req);
   const userId = req.session.userId!;
   const input = taskCreateSchema.parse(req.body);
-  if (input.categoryId != null) await assertCategoryOwned(userId, input.categoryId);
+  if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
 
   const task = await prisma.task.create({
     data: {
@@ -63,7 +65,8 @@ apiTasksRouter.post("/", async (req, res) => {
       priority: input.priority ?? "MEDIUM",
       dueDate: input.dueDate ?? null,
       categoryId: input.categoryId ?? null,
-      userId,
+      workspaceId,
+      creatorId: userId,
     },
     include: { category: true },
   });
@@ -72,24 +75,27 @@ apiTasksRouter.post("/", async (req, res) => {
 
 // タスク単一取得
 apiTasksRouter.get("/:id", async (req, res) => {
-  const userId = req.session.userId!;
+  const { workspaceId } = await resolveWorkspace(req);
   const id = parseId(req.params.id);
-  const task = await prisma.task.findFirst({ where: { id, userId }, include: { category: true } });
+  const task = await prisma.task.findFirst({
+    where: { id, workspaceId },
+    include: { category: true },
+  });
   if (!task) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
   res.json({ task });
 });
 
 // タスク更新（PATCH：送られてきた項目のみ更新）
 apiTasksRouter.patch("/:id", async (req, res) => {
-  const userId = req.session.userId!;
+  const { workspaceId } = await resolveWorkspace(req);
   const id = parseId(req.params.id);
   const input = taskUpdateSchema.parse(req.body);
 
-  // 所有確認（他人のタスクは更新させない）
-  const existing = await prisma.task.findFirst({ where: { id, userId } });
+  // 対象ワークスペースのタスクか確認（他ワークスペースは更新させない）
+  const existing = await prisma.task.findFirst({ where: { id, workspaceId } });
   if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
 
-  if (input.categoryId != null) await assertCategoryOwned(userId, input.categoryId);
+  if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
 
   // undefined（未送信）の項目は更新対象から外す
   const data: any = {};
@@ -106,19 +112,19 @@ apiTasksRouter.patch("/:id", async (req, res) => {
 
 // タスク削除
 apiTasksRouter.delete("/:id", async (req, res) => {
-  const userId = req.session.userId!;
+  const { workspaceId } = await resolveWorkspace(req);
   const id = parseId(req.params.id);
-  const result = await prisma.task.deleteMany({ where: { id, userId } });
+  const result = await prisma.task.deleteMany({ where: { id, workspaceId } });
   if (result.count === 0) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
   res.status(204).end();
 });
 
 // 完了 / 未完了の切替
 apiTasksRouter.post("/:id/toggle", async (req, res) => {
-  const userId = req.session.userId!;
+  const { workspaceId } = await resolveWorkspace(req);
   const id = parseId(req.params.id);
 
-  const existing = await prisma.task.findFirst({ where: { id, userId } });
+  const existing = await prisma.task.findFirst({ where: { id, workspaceId } });
   if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
 
   const task = await prisma.task.update({

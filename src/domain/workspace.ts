@@ -1,0 +1,47 @@
+import type { Request } from "express";
+import { prisma } from "../db";
+import { HttpError } from "../api/http";
+import type { Role } from "../../generated/prisma/enums";
+
+// リクエストユーザーの「アクティブなワークスペース」と、そこでの役割。
+export interface ActiveWorkspace {
+  workspaceId: number;
+  role: Role;
+}
+
+// アクティブなワークスペースを解決する。
+// session.workspaceId が本人の所属を指していればそれを採用。
+// 無効/未設定なら最初の所属を既定にしてセッションへ保存する（Phase 3b で切替 UI を追加）。
+export async function resolveWorkspace(req: Request): Promise<ActiveWorkspace> {
+  const userId = req.session.userId;
+  // requireAuthApi 通過済みが前提だが、保険として
+  if (!userId) throw new HttpError(401, "認証が必要です。", "UNAUTHENTICATED");
+
+  const wsId = req.session.workspaceId;
+  let membership = wsId
+    ? await prisma.membership.findUnique({
+        where: { userId_workspaceId: { userId, workspaceId: wsId } },
+      })
+    : null;
+
+  if (!membership) {
+    // 最初の所属を既定に採用（登録時に個人ワークスペースが必ず作られる）
+    membership = await prisma.membership.findFirst({
+      where: { userId },
+      orderBy: { id: "asc" },
+    });
+    if (!membership) {
+      throw new HttpError(403, "所属するワークスペースがありません。", "NO_WORKSPACE");
+    }
+    req.session.workspaceId = membership.workspaceId;
+  }
+
+  return { workspaceId: membership.workspaceId, role: membership.role };
+}
+
+// 役割による操作可否チェック。許可役割に含まれなければ 403（design.md §6）。
+export function requireRole(role: Role, allowed: Role[]) {
+  if (!allowed.includes(role)) {
+    throw new HttpError(403, "この操作を行う権限がありません。", "FORBIDDEN");
+  }
+}

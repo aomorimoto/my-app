@@ -55,6 +55,11 @@ body {
   color: var(--muted);
   font-size: 0.9rem;
 }
+.site-header nav .workspace {
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 
 .container {
   max-width: 900px;
