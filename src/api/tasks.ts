@@ -13,6 +13,12 @@ type Priority = (typeof PRIORITIES)[number];
 const isStatus = (v: unknown): v is Status => STATUSES.includes(v as Status);
 const isPriority = (v: unknown): v is Priority => PRIORITIES.includes(v as Priority);
 
+// タスクレスポンス共通の include（カテゴリ＋担当者の公開情報）
+const taskInclude = {
+  category: true,
+  assignee: { select: { id: true, email: true, name: true } },
+} as const;
+
 // 指定カテゴリが対象ワークスペースのものか検証する。異なる/不明なら 400。
 async function assertCategoryInWorkspace(workspaceId: number, categoryId: number) {
   const found = await prisma.category.findFirst({ where: { id: categoryId, workspaceId } });
@@ -21,16 +27,31 @@ async function assertCategoryInWorkspace(workspaceId: number, categoryId: number
   }
 }
 
+// 指定担当者が対象ワークスペースのメンバーか検証する。非メンバーなら 400。
+async function assertAssigneeInWorkspace(workspaceId: number, assigneeId: number) {
+  const member = await prisma.membership.findUnique({
+    where: { userId_workspaceId: { userId: assigneeId, workspaceId } },
+  });
+  if (!member) {
+    throw new HttpError(
+      400,
+      "指定された担当者はこのワークスペースのメンバーではありません。",
+      "INVALID_ASSIGNEE"
+    );
+  }
+}
+
 // タスク一覧（絞り込み・並び替え付き）
 apiTasksRouter.get("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
-  const { status, priority, category, sort } = req.query;
+  const { status, priority, category, assignee, sort } = req.query;
 
   // 絞り込み条件を組み立てる（ワークスペースのタスクに限定）
   const where: any = { workspaceId };
   if (isStatus(status)) where.status = status;
   if (isPriority(priority)) where.priority = priority;
   if (category && !Number.isNaN(Number(category))) where.categoryId = Number(category);
+  if (assignee && !Number.isNaN(Number(assignee))) where.assigneeId = Number(assignee);
 
   // 並び替え（既定は作成が新しい順）
   let orderBy: any;
@@ -46,7 +67,7 @@ apiTasksRouter.get("/", async (req, res) => {
       orderBy = [{ createdAt: "desc" }];
   }
 
-  const tasks = await prisma.task.findMany({ where, orderBy, include: { category: true } });
+  const tasks = await prisma.task.findMany({ where, orderBy, include: taskInclude });
   res.json({ tasks });
 });
 
@@ -56,6 +77,7 @@ apiTasksRouter.post("/", async (req, res) => {
   const userId = req.session.userId!;
   const input = taskCreateSchema.parse(req.body);
   if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
+  if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);
 
   const task = await prisma.task.create({
     data: {
@@ -65,10 +87,11 @@ apiTasksRouter.post("/", async (req, res) => {
       priority: input.priority ?? "MEDIUM",
       dueDate: input.dueDate ?? null,
       categoryId: input.categoryId ?? null,
+      assigneeId: input.assigneeId ?? null,
       workspaceId,
       creatorId: userId,
     },
-    include: { category: true },
+    include: taskInclude,
   });
   res.status(201).json({ task });
 });
@@ -79,7 +102,7 @@ apiTasksRouter.get("/:id", async (req, res) => {
   const id = parseId(req.params.id);
   const task = await prisma.task.findFirst({
     where: { id, workspaceId },
-    include: { category: true },
+    include: taskInclude,
   });
   if (!task) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
   res.json({ task });
@@ -96,6 +119,7 @@ apiTasksRouter.patch("/:id", async (req, res) => {
   if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
 
   if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
+  if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);
 
   // undefined（未送信）の項目は更新対象から外す
   const data: any = {};
@@ -105,8 +129,9 @@ apiTasksRouter.patch("/:id", async (req, res) => {
   if (input.priority !== undefined) data.priority = input.priority;
   if (input.dueDate !== undefined) data.dueDate = input.dueDate;
   if (input.categoryId !== undefined) data.categoryId = input.categoryId;
+  if (input.assigneeId !== undefined) data.assigneeId = input.assigneeId;
 
-  const task = await prisma.task.update({ where: { id }, data, include: { category: true } });
+  const task = await prisma.task.update({ where: { id }, data, include: taskInclude });
   res.json({ task });
 });
 
@@ -130,7 +155,7 @@ apiTasksRouter.post("/:id/toggle", async (req, res) => {
   const task = await prisma.task.update({
     where: { id },
     data: { status: existing.status === "DONE" ? "TODO" : "DONE" },
-    include: { category: true },
+    include: taskInclude,
   });
   res.json({ task });
 });

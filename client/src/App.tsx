@@ -6,6 +6,7 @@ import SignupPage from "./pages/SignupPage";
 import TasksPage from "./pages/TasksPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import CategoriesPage from "./pages/CategoriesPage";
+import WorkspacesPage from "./pages/WorkspacesPage";
 
 export default function App() {
   return (
@@ -25,6 +26,7 @@ export default function App() {
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/:id" element={<TaskDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
+        <Route path="/workspaces" element={<WorkspacesPage />} />
       </Route>
 
       {/* リダイレクト */}

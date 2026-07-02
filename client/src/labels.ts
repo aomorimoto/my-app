@@ -1,7 +1,18 @@
-import type { Status, Priority } from "./types";
+import type { Status, Priority, Role } from "./types";
 
 export const STATUSES: Status[] = ["TODO", "IN_PROGRESS", "DONE"];
 export const PRIORITIES: Priority[] = ["HIGH", "MEDIUM", "LOW"];
+
+export const ROLE_LABEL: Record<Role, string> = {
+  OWNER: "オーナー",
+  ADMIN: "管理者",
+  MEMBER: "メンバー",
+};
+
+// 担当者などの表示名（名前が無ければメール）
+export function memberLabel(m: { name: string | null; email: string }): string {
+  return m.name || m.email;
+}
 
 export const STATUS_LABEL: Record<Status, string> = {
   TODO: "未着手",

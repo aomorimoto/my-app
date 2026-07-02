@@ -344,3 +344,72 @@ details.card summary {
   font-weight: 600;
   flex: 1;
 }
+
+/* ワークスペース切替（ヘッダー） */
+.ws-switcher {
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  max-width: 220px;
+}
+
+/* 担当者バッジ */
+.badge.assignee {
+  background: #e0e7ff;
+  color: #3730a3;
+}
+.badge.role {
+  background: #e2e8f0;
+  color: var(--text);
+}
+
+/* メンバー一覧・追加フォーム */
+.members-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.member-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 0;
+}
+.member-item .member-name {
+  font-weight: 600;
+}
+.member-item .member-email {
+  flex: 1;
+}
+.member-item .role-select {
+  font: inherit;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.member-form,
+.ws-create-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+.member-form h2,
+.ws-create-form h2 {
+  flex: 1 1 100%;
+  margin: 0;
+}
+.member-form .grow,
+.ws-create-form .grow {
+  flex: 1 1 200px;
+}
+.member-form .muted {
+  flex: 1 1 100%;
+  margin: 0;
+}

@@ -1,10 +1,16 @@
 import { useState, type FormEvent } from "react";
-import type { Category } from "../types";
-import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL } from "../labels";
+import type { Category, Member } from "../types";
+import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
 import { useCreateTask } from "../queries/tasks";
 
 // タスク追加フォーム
-export default function TaskForm({ categories }: { categories: Category[] }) {
+export default function TaskForm({
+  categories,
+  members,
+}: {
+  categories: Category[];
+  members: Member[];
+}) {
   const create = useCreateTask();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -12,6 +18,7 @@ export default function TaskForm({ categories }: { categories: Category[] }) {
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [assigneeId, setAssigneeId] = useState("");
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = (e: FormEvent) => {
@@ -25,6 +32,7 @@ export default function TaskForm({ categories }: { categories: Category[] }) {
         priority,
         dueDate: dueDate || null,
         categoryId: categoryId ? Number(categoryId) : null,
+        assigneeId: assigneeId ? Number(assigneeId) : null,
       },
       {
         onSuccess: () => {
@@ -34,6 +42,7 @@ export default function TaskForm({ categories }: { categories: Category[] }) {
           setPriority("MEDIUM");
           setDueDate("");
           setCategoryId("");
+          setAssigneeId("");
         },
         onError: (err) => setError(err.message || "追加に失敗しました。"),
       }
@@ -95,6 +104,17 @@ export default function TaskForm({ categories }: { categories: Category[] }) {
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          担当者
+          <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+            <option value="">未割当</option>
+            {members.map((m) => (
+              <option key={m.id} value={m.id}>
+                {memberLabel(m)}
               </option>
             ))}
           </select>

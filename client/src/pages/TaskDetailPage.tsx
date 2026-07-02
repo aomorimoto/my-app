@@ -2,7 +2,9 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useTask, useUpdateTask } from "../queries/tasks";
 import { useCategories } from "../queries/categories";
-import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL } from "../labels";
+import { useMe } from "../queries/auth";
+import { useMembers } from "../queries/workspaces";
+import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
 
 interface FormState {
   title: string;
@@ -11,6 +13,7 @@ interface FormState {
   priority: string;
   dueDate: string;
   categoryId: string;
+  assigneeId: string;
 }
 
 const INITIAL: FormState = {
@@ -20,6 +23,7 @@ const INITIAL: FormState = {
   priority: "MEDIUM",
   dueDate: "",
   categoryId: "",
+  assigneeId: "",
 };
 
 export default function TaskDetailPage() {
@@ -29,6 +33,8 @@ export default function TaskDetailPage() {
 
   const taskQ = useTask(taskId);
   const catsQ = useCategories();
+  const meQ = useMe();
+  const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
   const update = useUpdateTask(taskId);
 
   const [form, setForm] = useState<FormState>(INITIAL);
@@ -45,6 +51,7 @@ export default function TaskDetailPage() {
         priority: task.priority,
         dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
         categoryId: task.categoryId ? String(task.categoryId) : "",
+        assigneeId: task.assigneeId ? String(task.assigneeId) : "",
       });
     }
   }, [taskQ.data]);
@@ -53,6 +60,7 @@ export default function TaskDetailPage() {
   if (taskQ.isError || !taskQ.data?.task) return <p className="error">タスクが見つかりません。</p>;
 
   const categories = catsQ.data?.categories ?? [];
+  const members = membersQ.data?.members ?? [];
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
   const onSubmit = (e: FormEvent) => {
@@ -66,6 +74,7 @@ export default function TaskDetailPage() {
         priority: form.priority,
         dueDate: form.dueDate || null,
         categoryId: form.categoryId ? Number(form.categoryId) : null,
+        assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
       },
       {
         onSuccess: () => navigate("/tasks"),
@@ -119,6 +128,17 @@ export default function TaskDetailPage() {
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            担当者
+            <select value={form.assigneeId} onChange={(e) => set({ assigneeId: e.target.value })}>
+              <option value="">未割当</option>
+              {members.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {memberLabel(m)}
                 </option>
               ))}
             </select>

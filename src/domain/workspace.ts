@@ -45,3 +45,16 @@ export function requireRole(role: Role, allowed: Role[]) {
     throw new HttpError(403, "この操作を行う権限がありません。", "FORBIDDEN");
   }
 }
+
+// 指定ワークスペースにおけるユーザーの役割を返す。所属していなければ 403。
+// アクティブ WS ではなく URL で明示された :id を対象にするルート（メンバー管理）で使う。
+export async function requireMembership(userId: number, workspaceId: number): Promise<Role> {
+  const membership = await prisma.membership.findUnique({
+    where: { userId_workspaceId: { userId, workspaceId } },
+    select: { role: true },
+  });
+  if (!membership) {
+    throw new HttpError(403, "このワークスペースにアクセスする権限がありません。", "FORBIDDEN");
+  }
+  return membership.role;
+}

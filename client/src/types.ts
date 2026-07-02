@@ -16,6 +16,24 @@ export interface ActiveWorkspace {
   role: Role;
 }
 
+// 自分が所属するワークスペース（/api/workspaces の要素）
+export interface Workspace {
+  id: number;
+  name: string;
+  ownerId: number;
+  role: Role;
+  memberCount: number;
+}
+
+// ワークスペースのメンバー（/api/workspaces/:id/members の要素）
+export interface Member {
+  id: number; // userId
+  email: string;
+  name: string | null;
+  role: Role;
+  joinedAt: string;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -47,5 +65,6 @@ export interface TaskFilters {
   status?: Status | "";
   priority?: Priority | "";
   category?: string; // カテゴリID（文字列）または ""
+  assignee?: string; // 担当者のユーザーID（文字列）または ""
   sort?: "" | "dueDate" | "priority";
 }

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Task } from "../types";
-import { STATUS_LABEL, PRIORITY_LABEL, formatDate } from "../labels";
+import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel } from "../labels";
 import { useToggleTask, useDeleteTask } from "../queries/tasks";
 
 export default function TaskItem({ task }: { task: Task }) {
@@ -39,6 +39,9 @@ export default function TaskItem({ task }: { task: Task }) {
             <span className="badge cat" style={{ background: task.category.color }}>
               {task.category.name}
             </span>
+          )}
+          {task.assignee && (
+            <span className="badge assignee">👤 {memberLabel(task.assignee)}</span>
           )}
           {task.dueDate && (
             <span className={`badge due ${overdue ? "overdue" : ""}`}>

@@ -3,6 +3,7 @@ import { requireAuthApi } from "../middleware";
 import { apiAuthRouter } from "./auth";
 import { apiTasksRouter } from "./tasks";
 import { apiCategoriesRouter } from "./categories";
+import { apiWorkspacesRouter } from "./workspaces";
 import { apiErrorHandler } from "./http";
 
 // /api 配下の JSON API をまとめるルータ。
@@ -12,9 +13,10 @@ export const apiRouter = Router();
 // 認証は誰でもアクセス可（/me はログイン状態を返す）
 apiRouter.use("/auth", apiAuthRouter);
 
-// タスク・カテゴリはログイン必須（未ログインは JSON で 401）
+// タスク・カテゴリ・ワークスペースはログイン必須（未ログインは JSON で 401）
 apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);
 apiRouter.use("/categories", requireAuthApi, apiCategoriesRouter);
+apiRouter.use("/workspaces", requireAuthApi, apiWorkspacesRouter);
 
 // 未定義の /api パスは JSON で 404
 apiRouter.use((_req, res) => {
