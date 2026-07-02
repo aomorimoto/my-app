@@ -30,6 +30,7 @@ export default function Header() {
       <nav>
         <Link to="/tasks">タスク</Link>
         <Link to="/categories">カテゴリ</Link>
+        <Link to="/tags">タグ</Link>
         <Link to="/workspaces">ワークスペース</Link>
         {workspaces.length > 0 && (
           <select

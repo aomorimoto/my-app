@@ -25,6 +25,15 @@ const assigneeIdField = z.preprocess(
   z.coerce.number().int().positive().nullable().optional()
 );
 
+// 親タスクID: 数値文字列 → number、空文字 → null（トップレベル）。categoryIdField と同型。
+const parentIdField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z.coerce.number().int().positive().nullable().optional()
+);
+
+// タグID配列: 数値文字列も許容し number[] に変換。未指定はそのまま（PATCH で「変更なし」と区別）。
+const tagIdsField = z.array(z.coerce.number().int().positive()).optional();
+
 // メールアドレス（signup/login と同じ前処理）
 const emailField = z
   .string()
@@ -61,6 +70,8 @@ export const taskCreateSchema = z.object({
   dueDate: dueDateField,
   categoryId: categoryIdField,
   assigneeId: assigneeIdField,
+  parentId: parentIdField,
+  tagIds: tagIdsField,
 });
 
 // PATCH 用: 送られてきた項目だけ更新する（全項目を任意にする）。
@@ -75,6 +86,28 @@ export const categoryCreateSchema = z.object({
     .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
     .optional(),
 });
+
+// --- タグ ---
+
+export const tagCreateSchema = z.object({
+  name: z.string().trim().min(1, "タグ名を入力してください。").max(50),
+  color: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
+    .optional(),
+});
+
+// PATCH 用: 送られてきた項目だけ更新する。
+export const tagUpdateSchema = tagCreateSchema.partial();
+
+// --- コメント ---
+
+export const commentCreateSchema = z.object({
+  body: z.string().trim().min(1, "コメントを入力してください。").max(2000),
+});
+
+// 更新も本文のみ。
+export const commentUpdateSchema = commentCreateSchema;
 
 // --- ワークスペース / メンバー ---
 

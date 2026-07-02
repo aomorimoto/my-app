@@ -10,6 +10,8 @@ export interface TaskInput {
   dueDate?: string | null;
   categoryId?: number | null;
   assigneeId?: number | null;
+  parentId?: number | null;
+  tagIds?: number[];
 }
 
 export function fetchTasks(filters: TaskFilters) {
@@ -18,6 +20,7 @@ export function fetchTasks(filters: TaskFilters) {
   if (filters.priority) params.set("priority", filters.priority);
   if (filters.category) params.set("category", filters.category);
   if (filters.assignee) params.set("assignee", filters.assignee);
+  if (filters.tag) params.set("tag", filters.tag);
   if (filters.sort) params.set("sort", filters.sort);
   const qs = params.toString();
   return apiFetch<{ tasks: Task[] }>(`/api/tasks${qs ? `?${qs}` : ""}`);

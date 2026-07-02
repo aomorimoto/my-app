@@ -3,6 +3,7 @@ import { requireAuthApi } from "../middleware";
 import { apiAuthRouter } from "./auth";
 import { apiTasksRouter } from "./tasks";
 import { apiCategoriesRouter } from "./categories";
+import { apiTagsRouter } from "./tags";
 import { apiWorkspacesRouter } from "./workspaces";
 import { apiErrorHandler } from "./http";
 
@@ -16,6 +17,7 @@ apiRouter.use("/auth", apiAuthRouter);
 // タスク・カテゴリ・ワークスペースはログイン必須（未ログインは JSON で 401）
 apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);
 apiRouter.use("/categories", requireAuthApi, apiCategoriesRouter);
+apiRouter.use("/tags", requireAuthApi, apiTagsRouter);
 apiRouter.use("/workspaces", requireAuthApi, apiWorkspacesRouter);
 
 // 未定義の /api パスは JSON で 404

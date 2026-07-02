@@ -1,16 +1,18 @@
-import type { Category, Member, TaskFilters } from "../types";
+import type { Category, Member, Tag, TaskFilters } from "../types";
 import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
 
 // 絞り込み・並び替えバー（状態は親が保持し、変更を通知する）
 export default function FilterBar({
   categories,
   members,
+  tags,
   filters,
   onChange,
   onClear,
 }: {
   categories: Category[];
   members: Member[];
+  tags: Tag[];
   filters: TaskFilters;
   onChange: (next: TaskFilters) => void;
   onClear: () => void;
@@ -65,6 +67,17 @@ export default function FilterBar({
           {members.map((m) => (
             <option key={m.id} value={m.id}>
               {memberLabel(m)}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        タグ
+        <select value={filters.tag ?? ""} onChange={(e) => set({ tag: e.target.value })}>
+          <option value="">すべて</option>
+          {tags.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
             </option>
           ))}
         </select>

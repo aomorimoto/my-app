@@ -10,6 +10,10 @@ export default function TaskItem({ task }: { task: Task }) {
   const done = task.status === "DONE";
   const overdue = !!task.dueDate && !done && new Date(task.dueDate) < new Date();
 
+  const subtasks = task.subtasks ?? [];
+  const doneSubtasks = subtasks.filter((s) => s.status === "DONE").length;
+  const commentCount = task._count?.comments ?? 0;
+
   const onDelete = () => {
     if (window.confirm("このタスクを削除しますか？")) {
       del.mutate(task.id);
@@ -43,6 +47,17 @@ export default function TaskItem({ task }: { task: Task }) {
           {task.assignee && (
             <span className="badge assignee">👤 {memberLabel(task.assignee)}</span>
           )}
+          {task.tags?.map((t) => (
+            <span key={t.id} className="badge tag" style={{ background: t.color }}>
+              #{t.name}
+            </span>
+          ))}
+          {subtasks.length > 0 && (
+            <span className="badge subtasks">
+              サブタスク {doneSubtasks}/{subtasks.length}
+            </span>
+          )}
+          {commentCount > 0 && <span className="badge comments">💬 {commentCount}</span>}
           {task.dueDate && (
             <span className={`badge due ${overdue ? "overdue" : ""}`}>
               期限: {formatDate(task.dueDate)}

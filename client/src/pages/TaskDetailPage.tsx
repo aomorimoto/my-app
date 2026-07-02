@@ -1,10 +1,19 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useTask, useUpdateTask } from "../queries/tasks";
+import {
+  useTask,
+  useUpdateTask,
+  useCreateTask,
+  useToggleTask,
+  useDeleteTask,
+} from "../queries/tasks";
 import { useCategories } from "../queries/categories";
+import { useTags } from "../queries/tags";
 import { useMe } from "../queries/auth";
 import { useMembers } from "../queries/workspaces";
 import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
+import TagSelector from "../components/TagSelector";
+import CommentThread from "../components/CommentThread";
 
 interface FormState {
   title: string;
@@ -33,12 +42,20 @@ export default function TaskDetailPage() {
 
   const taskQ = useTask(taskId);
   const catsQ = useCategories();
+  const tagsQ = useTags();
   const meQ = useMe();
   const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
   const update = useUpdateTask(taskId);
 
+  // サブタスク操作（親と同じ tasks クエリを共有）
+  const createSubtask = useCreateTask();
+  const toggleSubtask = useToggleTask();
+  const deleteSubtask = useDeleteTask();
+
   const [form, setForm] = useState<FormState>(INITIAL);
+  const [tagIds, setTagIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [subtaskTitle, setSubtaskTitle] = useState("");
 
   // 取得したタスクをフォームに反映
   useEffect(() => {
@@ -53,14 +70,19 @@ export default function TaskDetailPage() {
         categoryId: task.categoryId ? String(task.categoryId) : "",
         assigneeId: task.assigneeId ? String(task.assigneeId) : "",
       });
+      setTagIds((task.tags ?? []).map((t) => t.id));
     }
   }, [taskQ.data]);
 
   if (taskQ.isLoading) return <p className="muted">読み込み中…</p>;
   if (taskQ.isError || !taskQ.data?.task) return <p className="error">タスクが見つかりません。</p>;
 
+  const task = taskQ.data.task;
   const categories = catsQ.data?.categories ?? [];
+  const tags = tagsQ.data?.tags ?? [];
   const members = membersQ.data?.members ?? [];
+  const subtasks = task.subtasks ?? [];
+  const isSubtask = task.parentId != null;
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
   const onSubmit = (e: FormEvent) => {
@@ -75,12 +97,29 @@ export default function TaskDetailPage() {
         dueDate: form.dueDate || null,
         categoryId: form.categoryId ? Number(form.categoryId) : null,
         assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
+        tagIds,
       },
       {
         onSuccess: () => navigate("/tasks"),
         onError: (err) => setError(err.message || "保存に失敗しました。"),
       }
     );
+  };
+
+  const onAddSubtask = (e: FormEvent) => {
+    e.preventDefault();
+    const title = subtaskTitle.trim();
+    if (!title) return;
+    createSubtask.mutate(
+      { title, parentId: taskId },
+      { onSuccess: () => setSubtaskTitle("") }
+    );
+  };
+
+  const onDeleteSubtask = (subId: number) => {
+    if (window.confirm("このサブタスクを削除しますか？")) {
+      deleteSubtask.mutate(subId);
+    }
   };
 
   return (
@@ -144,6 +183,10 @@ export default function TaskDetailPage() {
             </select>
           </label>
         </div>
+        <div className="tags-field">
+          <span className="field-label">タグ</span>
+          <TagSelector tags={tags} selected={tagIds} onChange={setTagIds} />
+        </div>
         <div className="actions">
           <button type="submit" className="btn-primary" disabled={update.isPending}>
             保存
@@ -153,6 +196,66 @@ export default function TaskDetailPage() {
           </button>
         </div>
       </form>
+
+      {/* サブタスク（サブタスク自身にはさらにサブタスクを付けない） */}
+      {!isSubtask && (
+        <section className="card subtask-section">
+          <h2 className="section-title">
+            サブタスク（{subtasks.filter((s) => s.status === "DONE").length}/{subtasks.length}）
+          </h2>
+          {subtasks.length === 0 ? (
+            <p className="muted">サブタスクはありません。</p>
+          ) : (
+            <ul className="subtask-list">
+              {subtasks.map((s) => {
+                const done = s.status === "DONE";
+                return (
+                  <li key={s.id} className={`subtask-item ${done ? "done" : ""}`}>
+                    <button
+                      type="button"
+                      className="check"
+                      title="完了/未完了を切替"
+                      onClick={() => toggleSubtask.mutate(s.id)}
+                      disabled={toggleSubtask.isPending}
+                    >
+                      {done ? "☑" : "☐"}
+                    </button>
+                    <span className="subtask-title">{s.title}</span>
+                    <button
+                      type="button"
+                      className="btn-small danger"
+                      onClick={() => onDeleteSubtask(s.id)}
+                      disabled={deleteSubtask.isPending}
+                    >
+                      削除
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <form className="form subtask-form" onSubmit={onAddSubtask}>
+            <input
+              type="text"
+              value={subtaskTitle}
+              onChange={(e) => setSubtaskTitle(e.target.value)}
+              placeholder="サブタスクを追加…"
+            />
+            <button type="submit" className="btn-small" disabled={createSubtask.isPending}>
+              追加
+            </button>
+          </form>
+        </section>
+      )}
+
+      {/* コメント */}
+      <div className="card">
+        <CommentThread
+          taskId={taskId}
+          currentUserId={meQ.data?.user?.id}
+          role={meQ.data?.activeWorkspace?.role}
+        />
+      </div>
     </>
   );
 }

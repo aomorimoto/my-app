@@ -1,15 +1,18 @@
 import { useState, type FormEvent } from "react";
-import type { Category, Member } from "../types";
+import type { Category, Member, Tag } from "../types";
 import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
 import { useCreateTask } from "../queries/tasks";
+import TagSelector from "./TagSelector";
 
 // タスク追加フォーム
 export default function TaskForm({
   categories,
   members,
+  tags,
 }: {
   categories: Category[];
   members: Member[];
+  tags: Tag[];
 }) {
   const create = useCreateTask();
   const [title, setTitle] = useState("");
@@ -19,6 +22,7 @@ export default function TaskForm({
   const [dueDate, setDueDate] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [assigneeId, setAssigneeId] = useState("");
+  const [tagIds, setTagIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const onSubmit = (e: FormEvent) => {
@@ -33,6 +37,7 @@ export default function TaskForm({
         dueDate: dueDate || null,
         categoryId: categoryId ? Number(categoryId) : null,
         assigneeId: assigneeId ? Number(assigneeId) : null,
+        tagIds,
       },
       {
         onSuccess: () => {
@@ -43,6 +48,7 @@ export default function TaskForm({
           setDueDate("");
           setCategoryId("");
           setAssigneeId("");
+          setTagIds([]);
         },
         onError: (err) => setError(err.message || "追加に失敗しました。"),
       }
@@ -119,6 +125,10 @@ export default function TaskForm({
             ))}
           </select>
         </label>
+        <div className="tags-field">
+          <span className="field-label">タグ</span>
+          <TagSelector tags={tags} selected={tagIds} onChange={setTagIds} />
+        </div>
         <button type="submit" className="btn-primary" disabled={create.isPending}>
           追加
         </button>

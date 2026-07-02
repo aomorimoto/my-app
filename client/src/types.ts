@@ -42,6 +42,34 @@ export interface Category {
   _count?: { tasks: number };
 }
 
+// タグ（カテゴリと別軸で複数付与できる）
+export interface Tag {
+  id: number;
+  name: string;
+  color: string;
+  workspaceId: number;
+  _count?: { taskTags: number };
+}
+
+// タスクへのコメント
+export interface Comment {
+  id: number;
+  body: string;
+  taskId: number;
+  authorId: number;
+  author?: User;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// 一覧・詳細の include に含まれるサブタスク（浅い表現）
+export interface Subtask {
+  id: number;
+  title: string;
+  status: Status;
+  priority: Priority;
+}
+
 // JSON 経由なので日時は ISO 文字列で受け取る
 export interface Task {
   id: number;
@@ -56,6 +84,10 @@ export interface Task {
   creatorId: number;
   assigneeId: number | null; // 担当者。UI 連携は Phase 3b
   assignee?: User | null;
+  parentId: number | null; // 親タスク（サブタスク時に設定）
+  tags?: Tag[]; // API が taskTags を平坦化して返す
+  subtasks?: Subtask[]; // 子タスク（浅い表現）
+  _count?: { comments: number };
   createdAt: string;
   updatedAt: string;
 }
@@ -66,5 +98,6 @@ export interface TaskFilters {
   priority?: Priority | "";
   category?: string; // カテゴリID（文字列）または ""
   assignee?: string; // 担当者のユーザーID（文字列）または ""
+  tag?: string; // タグID（文字列）または ""
   sort?: "" | "dueDate" | "priority";
 }
