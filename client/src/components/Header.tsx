@@ -24,10 +24,11 @@ export default function Header() {
 
   return (
     <header className="site-header">
-      <Link className="brand" to="/tasks">
+      <Link className="brand" to="/dashboard">
         📋 タスク管理
       </Link>
       <nav>
+        <Link to="/dashboard">ダッシュボード</Link>
         <Link to="/tasks">タスク</Link>
         <Link to="/categories">カテゴリ</Link>
         <Link to="/tags">タグ</Link>

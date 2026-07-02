@@ -92,6 +92,21 @@ export interface Task {
   updatedAt: string;
 }
 
+// ダッシュボードのサマリ（/api/dashboard が返す）
+export interface DashboardSummary {
+  total: number;
+  byStatus: Record<Status, number>;
+  overdue: number; // 期限超過（未完了）
+  dueToday: number; // 今日締切（未完了）
+  dueThisWeek: number; // 今日〜7日以内（未完了・超過は含まない）
+}
+
+export interface DashboardData {
+  summary: DashboardSummary;
+  upcoming: Task[]; // 期限が近い/過ぎた未完了タスク（期限昇順）
+  myTasks: Task[]; // 自分が担当する未完了タスク
+}
+
 // タスク一覧の絞り込み・並び替え条件（URL クエリと 1:1）
 export interface TaskFilters {
   status?: Status | "";

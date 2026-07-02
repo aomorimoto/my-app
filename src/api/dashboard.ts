@@ -1,0 +1,87 @@
+import { Router } from "express";
+import { prisma } from "../db";
+import { resolveWorkspace } from "../domain/workspace";
+
+export const apiDashboardRouter = Router();
+
+// ダッシュボードで使うタスクの include（一覧カードと同等の軽量版。
+// サブタスク/コメント件数は集計・表示に不要なので含めない）。
+const dashboardInclude = {
+  category: true,
+  assignee: { select: { id: true, email: true, name: true } },
+  taskTags: { include: { tag: true } },
+} as const;
+
+// taskTags（中間テーブル）を tags: Tag[] に平坦化する（tasks.ts の shapeTask と同方針）。
+function shapeTask<T extends { taskTags: { tag: unknown }[] }>(task: T) {
+  const { taskTags, ...rest } = task;
+  return { ...rest, tags: taskTags.map((tt) => tt.tag) };
+}
+
+// 現在日の 0 時（UTC）。期限は日付のみ入力 → UTC 深夜で保存されるため、境界も UTC で取る。
+function utcStartOfToday(): Date {
+  const now = new Date();
+  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+}
+
+function addDays(d: Date, days: number): Date {
+  return new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+const PRIORITY_RANK: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
+
+// ダッシュボード用サマリ。集計範囲はタスク一覧と揃えてトップレベル（親）タスクのみ。
+apiDashboardRouter.get("/", async (req, res) => {
+  const { workspaceId } = await resolveWorkspace(req);
+  const userId = req.session.userId!;
+
+  const tasks = await prisma.task.findMany({
+    where: { workspaceId, parentId: null },
+    include: dashboardInclude,
+    orderBy: { createdAt: "desc" },
+  });
+
+  const todayStart = utcStartOfToday();
+  const tomorrowStart = addDays(todayStart, 1);
+  const weekEnd = addDays(todayStart, 7);
+
+  const byStatus = { TODO: 0, IN_PROGRESS: 0, DONE: 0 };
+  let overdue = 0;
+  let dueToday = 0;
+  let dueThisWeek = 0; // 今日〜7日以内（超過は含めない）
+
+  for (const t of tasks) {
+    byStatus[t.status]++;
+    if (t.status !== "DONE" && t.dueDate) {
+      const due = t.dueDate;
+      if (due < todayStart) overdue++;
+      else if (due < tomorrowStart) dueToday++;
+      if (due >= todayStart && due < weekEnd) dueThisWeek++;
+    }
+  }
+
+  // 期限が設定された未完了タスクを期限昇順で（超過が先頭に来る）。
+  const upcoming = tasks
+    .filter((t) => t.status !== "DONE" && t.dueDate)
+    .sort((a, b) => a.dueDate!.getTime() - b.dueDate!.getTime())
+    .slice(0, 8)
+    .map(shapeTask);
+
+  // 自分が担当する未完了タスク。期限昇順（未設定は末尾）→ 優先度の順。
+  const myTasks = tasks
+    .filter((t) => t.status !== "DONE" && t.assigneeId === userId)
+    .sort((a, b) => {
+      const ad = a.dueDate ? a.dueDate.getTime() : Infinity;
+      const bd = b.dueDate ? b.dueDate.getTime() : Infinity;
+      if (ad !== bd) return ad - bd;
+      return PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority];
+    })
+    .slice(0, 8)
+    .map(shapeTask);
+
+  res.json({
+    summary: { total: tasks.length, byStatus, overdue, dueToday, dueThisWeek },
+    upcoming,
+    myTasks,
+  });
+});

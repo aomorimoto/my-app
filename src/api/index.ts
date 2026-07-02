@@ -5,6 +5,7 @@ import { apiTasksRouter } from "./tasks";
 import { apiCategoriesRouter } from "./categories";
 import { apiTagsRouter } from "./tags";
 import { apiWorkspacesRouter } from "./workspaces";
+import { apiDashboardRouter } from "./dashboard";
 import { apiErrorHandler } from "./http";
 
 // /api 配下の JSON API をまとめるルータ。
@@ -19,6 +20,7 @@ apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);
 apiRouter.use("/categories", requireAuthApi, apiCategoriesRouter);
 apiRouter.use("/tags", requireAuthApi, apiTagsRouter);
 apiRouter.use("/workspaces", requireAuthApi, apiWorkspacesRouter);
+apiRouter.use("/dashboard", requireAuthApi, apiDashboardRouter);
 
 // 未定義の /api パスは JSON で 404
 apiRouter.use((_req, res) => {

@@ -415,6 +415,44 @@ details.card summary {
   margin: 0 0 12px;
 }
 
+/* ダッシュボード */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+.stat-card .stat-value {
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+.stat-card .stat-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.stat-card.danger .stat-value {
+  color: var(--danger);
+}
+.stat-card.warn .stat-value {
+  color: var(--medium);
+}
+.stat-card.ok .stat-value {
+  color: var(--low);
+}
+.dash-section {
+  margin-bottom: 28px;
+}
+
 /* サブタスク */
 .subtask-list {
   list-style: none;

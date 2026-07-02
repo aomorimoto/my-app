@@ -3,6 +3,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import DashboardPage from "./pages/DashboardPage";
 import TasksPage from "./pages/TasksPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
 import CategoriesPage from "./pages/CategoriesPage";
@@ -24,6 +25,7 @@ export default function App() {
           </ProtectedRoute>
         }
       >
+        <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/tasks" element={<TasksPage />} />
         <Route path="/tasks/:id" element={<TaskDetailPage />} />
         <Route path="/categories" element={<CategoriesPage />} />
@@ -31,9 +33,9 @@ export default function App() {
         <Route path="/workspaces" element={<WorkspacesPage />} />
       </Route>
 
-      {/* リダイレクト */}
-      <Route path="/" element={<Navigate to="/tasks" replace />} />
-      <Route path="*" element={<Navigate to="/tasks" replace />} />
+      {/* リダイレクト（既定の入口はダッシュボード） */}
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }
