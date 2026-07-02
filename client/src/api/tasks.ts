@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { Task, TaskFilters } from "../types";
+import type { Task, TaskFilters, TasksResponse } from "../types";
 
 // タスク作成/更新で送るフィールド（更新は部分的に送れる）
 export interface TaskInput {
@@ -22,8 +22,10 @@ export function fetchTasks(filters: TaskFilters) {
   if (filters.assignee) params.set("assignee", filters.assignee);
   if (filters.tag) params.set("tag", filters.tag);
   if (filters.sort) params.set("sort", filters.sort);
+  if (filters.q && filters.q.trim()) params.set("q", filters.q.trim());
+  if (filters.page) params.set("page", String(filters.page));
   const qs = params.toString();
-  return apiFetch<{ tasks: Task[] }>(`/api/tasks${qs ? `?${qs}` : ""}`);
+  return apiFetch<TasksResponse>(`/api/tasks${qs ? `?${qs}` : ""}`);
 }
 
 export const fetchTask = (id: number) => apiFetch<{ task: Task }>(`/api/tasks/${id}`);

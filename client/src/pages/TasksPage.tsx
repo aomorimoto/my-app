@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { TaskFilters } from "../types";
 import { useTasks } from "../queries/tasks";
 import { useCategories } from "../queries/categories";
@@ -16,10 +16,26 @@ const EMPTY_FILTERS: TaskFilters = {
   assignee: "",
   tag: "",
   sort: "",
+  q: "",
+  page: 1,
 };
 
 export default function TasksPage() {
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_FILTERS);
+  const [search, setSearch] = useState("");
+
+  // 検索語はデバウンス（300ms）して filters に反映。変更時はページを先頭に戻す。
+  useEffect(() => {
+    const id = setTimeout(() => {
+      setFilters((prev) => {
+        const q = search.trim();
+        if ((prev.q ?? "") === q) return prev; // 変化がなければ再取得しない
+        return { ...prev, q, page: 1 };
+      });
+    }, 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
   const tasksQ = useTasks(filters);
   const catsQ = useCategories();
   const tagsQ = useTags();
@@ -31,19 +47,51 @@ export default function TasksPage() {
   const members = membersQ.data?.members ?? [];
   const tasks = tasksQ.data?.tasks ?? [];
 
+  const page = filters.page ?? 1;
+  const totalPages = tasksQ.data?.totalPages ?? 1;
+  const total = tasksQ.data?.total ?? tasks.length;
+  const pageSize = tasksQ.data?.pageSize ?? 20;
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = (page - 1) * pageSize + tasks.length;
+
+  // 削除等で総ページ数が縮み、現在ページが範囲外になったら最終ページへ寄せる。
+  useEffect(() => {
+    const tp = tasksQ.data?.totalPages;
+    if (tp && page > tp) setFilters((prev) => ({ ...prev, page: tp }));
+  }, [tasksQ.data?.totalPages, page]);
+
+  // 絞り込み・並び替えが変わったら1ページ目に戻す。
+  const onFilterChange = (next: TaskFilters) => setFilters({ ...next, page: 1 });
+  const onClear = () => {
+    setSearch("");
+    setFilters(EMPTY_FILTERS);
+  };
+  const goPage = (p: number) => setFilters((prev) => ({ ...prev, page: p }));
+
   return (
     <>
       <h1>タスク</h1>
 
       <TaskForm categories={categories} members={members} tags={tags} />
 
+      <div className="search-bar card">
+        <span className="search-icon">🔍</span>
+        <input
+          type="search"
+          className="search-input"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="タイトル・説明で検索"
+        />
+      </div>
+
       <FilterBar
         categories={categories}
         members={members}
         tags={tags}
         filters={filters}
-        onChange={setFilters}
-        onClear={() => setFilters(EMPTY_FILTERS)}
+        onChange={onFilterChange}
+        onClear={onClear}
       />
 
       {tasksQ.isLoading ? (
@@ -51,13 +99,37 @@ export default function TasksPage() {
       ) : tasksQ.isError ? (
         <p className="error">タスクの取得に失敗しました。</p>
       ) : tasks.length === 0 ? (
-        <p className="empty">表示するタスクがありません。上のフォームから追加しましょう。</p>
+        <p className="empty">表示するタスクがありません。条件を変えるか、上のフォームから追加しましょう。</p>
       ) : (
-        <ul className="task-list">
-          {tasks.map((task) => (
-            <TaskItem key={task.id} task={task} />
-          ))}
-        </ul>
+        <>
+          <ul className="task-list">
+            {tasks.map((task) => (
+              <TaskItem key={task.id} task={task} />
+            ))}
+          </ul>
+
+          <div className="pagination">
+            <button
+              type="button"
+              className="btn-small"
+              onClick={() => goPage(page - 1)}
+              disabled={page <= 1}
+            >
+              ← 前へ
+            </button>
+            <span className="muted">
+              全 {total} 件中 {from}–{to}（{page}/{totalPages}）
+            </span>
+            <button
+              type="button"
+              className="btn-small"
+              onClick={() => goPage(page + 1)}
+              disabled={page >= totalPages}
+            >
+              次へ →
+            </button>
+          </div>
+        </>
       )}
     </>
   );

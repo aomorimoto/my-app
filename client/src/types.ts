@@ -115,4 +115,15 @@ export interface TaskFilters {
   assignee?: string; // 担当者のユーザーID（文字列）または ""
   tag?: string; // タグID（文字列）または ""
   sort?: "" | "dueDate" | "priority";
+  q?: string; // キーワード検索（タイトル/説明の部分一致）
+  page?: number; // ページ番号（1始まり）。指定時のみサーバがページネーションする
+}
+
+// タスク一覧のレスポンス。ページネーション時のみ total 等が付く（未指定時は tasks のみ）。
+export interface TasksResponse {
+  tasks: Task[];
+  total?: number;
+  page?: number;
+  pageSize?: number;
+  totalPages?: number;
 }

@@ -195,6 +195,42 @@ details.card summary {
   margin-bottom: 12px;
 }
 
+/* 検索ボックス */
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.search-bar .search-icon {
+  color: var(--muted);
+}
+.search-bar .search-input {
+  flex: 1;
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
+}
+.search-bar .search-input:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 0;
+}
+
+/* ページネーション */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 16px;
+}
+.pagination .btn-small:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* 絞り込みバー */
 .filter-bar {
   display: flex;

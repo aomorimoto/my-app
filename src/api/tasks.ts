@@ -99,7 +99,11 @@ async function assertParentValid(workspaceId: number, parentId: number, selfId?:
   }
 }
 
-// タスク一覧（絞り込み・並び替え付き）。既定はトップレベル（親タスク）のみ。
+// 1ページあたりの件数（ページネーション有効時）
+const PAGE_SIZE = 20;
+
+// タスク一覧（絞り込み・キーワード検索・並び替え付き）。既定はトップレベル（親タスク）のみ。
+// `page` クエリがある時だけページネーションを適用（無い時は従来どおり全件 `{ tasks }` を返す）。
 apiTasksRouter.get("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
   const { status, priority, category, assignee, tag, sort } = req.query;
@@ -111,6 +115,15 @@ apiTasksRouter.get("/", async (req, res) => {
   if (category && !Number.isNaN(Number(category))) where.categoryId = Number(category);
   if (assignee && !Number.isNaN(Number(assignee))) where.assigneeId = Number(assignee);
   if (tag && !Number.isNaN(Number(tag))) where.taskTags = { some: { tagId: Number(tag) } };
+
+  // キーワード検索（タイトル/説明の部分一致・大文字小文字無視）。他条件とは AND。
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (q) {
+    where.OR = [
+      { title: { contains: q, mode: "insensitive" } },
+      { description: { contains: q, mode: "insensitive" } },
+    ];
+  }
 
   // 並び替え（既定は作成が新しい順）
   let orderBy: any;
@@ -124,6 +137,29 @@ apiTasksRouter.get("/", async (req, res) => {
       break;
     default:
       orderBy = [{ createdAt: "desc" }];
+  }
+
+  // ページネーション（opt-in）。`page` 未指定は全件返す（カレンダー等の既存呼び出し互換）。
+  if (req.query.page !== undefined) {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const [rows, total] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        orderBy,
+        include: taskInclude,
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
+      prisma.task.count({ where }),
+    ]);
+    res.json({
+      tasks: rows.map(shapeTask),
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+      totalPages: Math.max(1, Math.ceil(total / PAGE_SIZE)),
+    });
+    return;
   }
 
   const tasks = await prisma.task.findMany({ where, orderBy, include: taskInclude });
