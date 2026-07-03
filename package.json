@@ -7,19 +7,29 @@
     "start": "tsx index.ts",
     "db:dev": "prisma dev",
     "client:dev": "npm --prefix client run dev",
-    "client:build": "npm --prefix client run build"
+    "client:build": "npm --prefix client run build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "タスク管理アプリ（Express API + React SPA + Prisma + PostgreSQL）",
   "devDependencies": {
+    "@eslint/js": "^9.0.0",
     "@types/connect-pg-simple": "^7.0.3",
     "@types/express": "^5.0.6",
     "@types/express-session": "^1.18.0",
     "@types/node": "^26.0.0",
+    "@types/supertest": "^6.0.0",
+    "eslint": "^9.0.0",
     "prisma": "^7.8.0",
-    "tsx": "^4.22.4"
+    "supertest": "^7.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.0.0"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",

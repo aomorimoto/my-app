@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    name: Backend (lint + API tests)
+    runs-on: ubuntu-latest
+
+    # 統合テスト用の使い捨て Postgres。CI 内でのみ立ち上げ、本番には一切触れない。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taskapp_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/taskapp_test
+      DATABASE_SSL: "false" # ローカル Postgres は SSL 非対応
+      SESSION_SECRET: test-session-secret
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # generated/prisma は生成物なので必ず生成する
+      - run: npx prisma generate
+      # テスト DB に全テーブル（session 含む）を作成
+      - run: npx prisma migrate deploy
+      - run: npm run lint
+      - run: npm test
+
+  frontend:
+    name: Frontend (lint + build + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm --prefix client ci
+      - run: npm --prefix client run lint
+      - run: npm --prefix client run test
+      - run: npm --prefix client run build
