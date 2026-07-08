@@ -17,6 +17,32 @@ describe("authorization", () => {
     expect(res.status).toBe(404);
   });
 
+  it("他ワークスペースのカテゴリは削除できない（404）", async () => {
+    const a = await signupAgent({ email: "cat-a@example.com" });
+    const b = await signupAgent({ email: "cat-b@example.com" });
+
+    // A の既定カテゴリの 1 つを取得
+    const cats = await a.agent.get("/api/categories");
+    const catId = cats.body.categories[0].id;
+
+    // B は自分の WS にスコープされるため、A のカテゴリは対象外（404）
+    const res = await b.agent.delete(`/api/categories/${catId}`);
+    expect(res.status).toBe(404);
+  });
+
+  it("他ワークスペースのタグは削除できない（404）", async () => {
+    const a = await signupAgent({ email: "tag-a@example.com" });
+    const b = await signupAgent({ email: "tag-b@example.com" });
+
+    const created = await a.agent.post("/api/tags").send({ name: "重要" });
+    expect(created.status).toBe(201);
+    const tagId = created.body.tag.id;
+
+    // B は自分の WS にスコープされるため、A のタグは対象外（404）
+    const res = await b.agent.delete(`/api/tags/${tagId}`);
+    expect(res.status).toBe(404);
+  });
+
   it("MEMBER はカテゴリを作成できない（403）", async () => {
     const owner = await signupAgent({ email: "team-owner@example.com" });
     const member = await signupAgent({ email: "team-member@example.com" });

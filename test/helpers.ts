@@ -23,6 +23,8 @@ let counter = 0;
 
 // signup 済みの認証エージェント（Cookie 保持）を作る。
 // 返り値の agent を使えば、以降のリクエストはログイン状態で送られる。
+// CSRF 保護が有効なので、agent の状態変更メソッド（post/put/patch/delete）は
+// X-CSRF-Token ヘッダを自動付与するようラップする（既存テストを無改修にするため）。
 export async function signupAgent(
   overrides: { email?: string; password?: string; name?: string } = {}
 ) {
@@ -35,5 +37,14 @@ export async function signupAgent(
   if (res.status !== 201) {
     throw new Error(`signup 失敗: ${res.status} ${JSON.stringify(res.body)}`);
   }
-  return { agent, email, password, name, userId: res.body.user.id as number };
+
+  // ログイン済みセッションに紐づく CSRF トークンを取得し、以降の変更系に自動付与する。
+  const csrfRes = await agent.get("/api/csrf");
+  const token = csrfRes.body.csrfToken as string;
+  for (const m of ["post", "put", "patch", "delete"] as const) {
+    const orig = agent[m].bind(agent);
+    (agent as any)[m] = (url: string) => orig(url).set("X-CSRF-Token", token);
+  }
+
+  return { agent, email, password, name, csrfToken: token, userId: res.body.user.id as number };
 }

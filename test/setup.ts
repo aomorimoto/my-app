@@ -41,3 +41,7 @@ if (fs.existsSync(envPath)) {
 // テスト/CI 用の既定を補完（明示指定があればそれを優先）。
 process.env.DATABASE_SSL = process.env.DATABASE_SSL ?? "false";
 process.env.SESSION_SECRET = process.env.SESSION_SECRET ?? "test-session-secret";
+
+// レート制限・morgan はテスト時に無効化する（NODE_ENV=test で判定）。
+// テストは 10 回を超える signup を行うため、確実に "test" にしておく。
+process.env.NODE_ENV = "test";

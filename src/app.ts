@@ -2,9 +2,13 @@ import path from "node:path";
 import express from "express";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
+import helmet from "helmet";
+import morgan from "morgan";
+import cookieParser from "cookie-parser";
 
 import { pool } from "./db";
 import { apiRouter } from "./api/index";
+import { apiLimiter } from "./security/rateLimit";
 
 // Render などのホスティングでは自動で本番フラグが立つ
 const isProd = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
@@ -22,8 +26,35 @@ export function createApp() {
   // 本番（Render）はプロキシ配下なので secure cookie を効かせるために必要
   if (isProd) app.set("trust proxy", 1);
 
+  // セキュリティヘッダ。CSP は SPA を壊さない最小構成にする
+  // （React の style={{...}} インライン属性を許可するため style-src に 'unsafe-inline'）。
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:"],
+          connectSrc: ["'self'"],
+        },
+      },
+    })
+  );
+
+  // アクセスログ（テスト時は出力しない）。本番は combined、開発は簡潔な dev フォーマット。
+  if (process.env.NODE_ENV !== "test") {
+    app.use(morgan(isProd ? "combined" : "dev"));
+  }
+
   // JSON リクエストボディ（/api 用）
   app.use(express.json());
+
+  // Cookie パース（csrf-csrf がダブルサブミット Cookie を読むために必要）
+  app.use(cookieParser(SESSION_SECRET));
+
+  // API 全体の緩めのレート制限（保険。テスト時は無効）
+  app.use("/api", apiLimiter);
 
   // セッション（Postgres に保存）
   const PgSession = connectPgSimple(session);

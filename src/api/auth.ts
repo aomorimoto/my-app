@@ -5,6 +5,7 @@ import { DEFAULT_CATEGORIES } from "../domain/defaults";
 import { resolveWorkspace } from "../domain/workspace";
 import { signupSchema, loginSchema } from "./schemas";
 import { HttpError } from "./http";
+import { authLimiter } from "../security/rateLimit";
 
 export const apiAuthRouter = Router();
 
@@ -39,7 +40,7 @@ apiAuthRouter.get("/me", async (req, res) => {
 });
 
 // 新規登録：ユーザー + 個人ワークスペース + OWNER メンバーシップ + 既定カテゴリを一括作成
-apiAuthRouter.post("/signup", async (req, res) => {
+apiAuthRouter.post("/signup", authLimiter, async (req, res) => {
   const { email, password, name } = signupSchema.parse(req.body);
 
   const exists = await prisma.user.findUnique({ where: { email } });
@@ -76,7 +77,7 @@ apiAuthRouter.post("/signup", async (req, res) => {
 });
 
 // ログイン
-apiAuthRouter.post("/login", async (req, res) => {
+apiAuthRouter.post("/login", authLimiter, async (req, res) => {
   const { email, password } = loginSchema.parse(req.body);
 
   const user = await prisma.user.findUnique({ where: { email } });
