@@ -66,8 +66,31 @@ npm start                       # → http://localhost:8888
 ### 環境変数（`.env`）
 
 ```
-DATABASE_URL="postgresql://..."          # PostgreSQL 接続文字列
-SESSION_SECRET="<ランダムな長い文字列>"   # 例: openssl rand -hex 32
+DATABASE_URL="postgresql://..."           # PostgreSQL 接続文字列
+SESSION_SECRET="<ランダムな長い文字列>"    # 例: openssl rand -hex 32
+PUBLIC_BASE_URL="http://localhost:8888"   # リモート MCP の OAuth issuer（本番は Render の公開 URL）
+```
+
+## リモート MCP（OAuth 2.1）
+
+Claude 等の MCP クライアントから、タスク管理機能をリモート MCP サーバとして利用できる。
+アプリ自身が OAuth 2.1 の認可サーバ兼リソースサーバになり、`/mcp`（Streamable HTTP）を公開する。
+認証は既存のログイン（express-session）を再利用し、クライアントは動的クライアント登録（DCR）+ PKCE で自動接続する。
+
+- 公開エンドポイント: `/mcp`、`/.well-known/oauth-authorization-server`、`/.well-known/oauth-protected-resource/mcp`、`/authorize`、`/token`、`/register`、`/revoke`
+- 公開ツール（`src/mcp/tools.ts`）: `list_tasks` / `get_task` / `list_categories` / `create_task` / `update_task` / `toggle_complete` / `delete_task` / `create_category`
+
+Claude Code から接続する場合は `.mcp.json`（本リポジトリの例）に URL だけ書けばよい（初回接続時にブラウザで OAuth 同意＝ログインが走る）:
+
+```json
+{ "mcpServers": { "taskapp": { "type": "http", "url": "https://my-app-zosl.onrender.com/mcp" } } }
+```
+
+ローカルで動作確認する場合は MCP Inspector が手軽（discovery → DCR → ブラウザでログイン → tools/list）:
+
+```bash
+PUBLIC_BASE_URL=http://localhost:8888 npm start   # 別ターミナルで
+npx @modelcontextprotocol/inspector                # http://localhost:8888/mcp を指定
 ```
 
 ## デプロイ（Render）
@@ -76,4 +99,4 @@ SESSION_SECRET="<ランダムな長い文字列>"   # 例: openssl rand -hex 32
 
 - **Build Command**: `npm ci && npm --prefix client ci && npm --prefix client run build && npx prisma generate && npx prisma migrate deploy`
 - **Start Command**: `npm start`（Express が `client/dist` を配信）
-- Render の Environment に `DATABASE_URL`（Internal）と `SESSION_SECRET` を設定すること。
+- Render の Environment に `DATABASE_URL`（Internal）と `SESSION_SECRET`、および `PUBLIC_BASE_URL=https://my-app-zosl.onrender.com`（リモート MCP の OAuth issuer）を設定すること。

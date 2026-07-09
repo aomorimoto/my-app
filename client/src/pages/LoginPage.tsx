@@ -1,17 +1,36 @@
-import { useState, type FormEvent } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { useState, useEffect, type FormEvent } from "react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { useLogin, useMe } from "../queries/auth";
+
+// ログイン後の復帰先（returnTo）を検証する。オープンリダイレクト対策として、
+// 同一オリジンの相対パスで、かつ OAuth 認可エンドポイント（/authorize）のみを許可する。
+// /authorize はサーバ側ルート（mcpAuthRouter）なので、react-router ではなく全ページ遷移で戻す。
+export function safeReturnTo(raw: string | null): string | null {
+  if (!raw) return null;
+  if (!raw.startsWith("/") || raw.startsWith("//")) return null; // 相対パスのみ（"//host" を弾く）
+  if (raw !== "/authorize" && !raw.startsWith("/authorize?")) return null; // 認可エンドポイントのみ
+  return raw;
+}
 
 export default function LoginPage() {
   const meQ = useMe();
   const login = useLogin();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const returnTo = safeReturnTo(searchParams.get("returnTo"));
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  // すでにログイン済みならタスク一覧へ
-  if (meQ.data?.user) return <Navigate to="/tasks" replace />;
+  // すでにログイン済みで OAuth 認可への復帰要求があれば、サーバ側 /authorize へ全ページ遷移する。
+  useEffect(() => {
+    if (meQ.data?.user && returnTo) {
+      window.location.assign(returnTo);
+    }
+  }, [meQ.data?.user, returnTo]);
+
+  // すでにログイン済み: 復帰先があれば上の effect が遷移する（その間は描画しない）。無ければタスク一覧へ。
+  if (meQ.data?.user) return returnTo ? null : <Navigate to="/tasks" replace />;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -19,7 +38,11 @@ export default function LoginPage() {
     login.mutate(
       { email, password },
       {
-        onSuccess: () => navigate("/tasks"),
+        onSuccess: () => {
+          // OAuth 認可フローの途中なら /authorize へ全ページ遷移、通常はタスク一覧へ。
+          if (returnTo) window.location.assign(returnTo);
+          else navigate("/tasks");
+        },
         onError: (err) => setError(err.message || "ログインに失敗しました。"),
       }
     );

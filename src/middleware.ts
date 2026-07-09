@@ -39,8 +39,10 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
   if (header?.startsWith("Bearer ")) {
     const raw = header.slice("Bearer ".length).trim();
     if (raw) {
+      const tokenHash = hashToken(raw);
+      // まず PAT（個人アクセストークン）を照合。
       const pat = await prisma.personalAccessToken.findUnique({
-        where: { tokenHash: hashToken(raw) },
+        where: { tokenHash },
         select: { id: true, userId: true },
       });
       if (pat) {
@@ -50,6 +52,17 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
         prisma.personalAccessToken
           .update({ where: { id: pat.id }, data: { lastUsedAt: new Date() } })
           .catch(() => {});
+      } else {
+        // 次にリモート MCP の OAuth アクセストークンを照合（期限内のみ有効）。
+        // これにより MCP ツールのループバック /api 呼び出しが既存の認可に合流する。
+        const at = await prisma.oAuthAccessToken.findUnique({
+          where: { tokenHash },
+          select: { userId: true, expiresAt: true },
+        });
+        if (at && at.expiresAt > new Date()) {
+          req.userId = at.userId;
+          req.bearerAuth = true;
+        }
       }
     }
   }

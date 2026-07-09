@@ -6,4 +6,5 @@ info/
 client/node_modules/
 client/dist/
 mcp/node_modules/
+.mcp.json
 cookie.txt

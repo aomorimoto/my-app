@@ -9,6 +9,7 @@ import cookieParser from "cookie-parser";
 import { pool } from "./db";
 import { apiRouter } from "./api/index";
 import { apiLimiter } from "./security/rateLimit";
+import { mountMcp } from "./mcp/index";
 
 // Render などのホスティングでは自動で本番フラグが立つ
 const isProd = process.env.NODE_ENV === "production" || process.env.RENDER === "true";
@@ -72,6 +73,11 @@ export function createApp() {
       },
     })
   );
+
+  // リモート MCP（Streamable HTTP + 自前 OAuth 2.1 認可サーバ）を載せる。
+  // /authorize や /.well-known などの GET は SPA フォールバックより前に処理する必要があるため、
+  // 静的配信より前のここで mount する（session ミドルウェアの後）。
+  mountMcp(app);
 
   // JSON API（バックエンド層）。内部に 404 ハンドラを持つので /api/* は下の SPA fallback に落ちない
   app.use("/api", apiRouter);

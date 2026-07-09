@@ -1,29 +1,22 @@
-// タスク管理アプリの REST /api を Bearer トークンで叩く小さなクライアント。
-// 設定は環境変数から読む（MCP クライアントの設定ファイルで渡す）:
-//   TASKAPP_BASE_URL  例: http://localhost:8888（既定） / 本番は Render の URL
-//   TASKAPP_TOKEN     個人アクセストークン（npm run token:create で発行）
+// 同一プロセス内の REST /api をループバックで叩く小さなクライアント。
+// リモート MCP のツールから、OAuth アクセストークンを Bearer として転送して呼ぶ。
+// これにより、既存ルートの検証・ワークスペーススコープ・CSRF 免除（Bearer は免除）を
+// そのまま再利用できる（middleware.ts の authenticate が OAuth トークンも userId に解決する）。
 
-const BASE_URL = (process.env.TASKAPP_BASE_URL ?? "http://localhost:8888").replace(/\/+$/, "");
-const TOKEN = process.env.TASKAPP_TOKEN;
-
-if (!TOKEN) {
-  // stdio の MCP では stderr にログを出す（stdout はプロトコル用）。
-  console.error(
-    "環境変数 TASKAPP_TOKEN が未設定です。`npm run token:create -- --email <you> --label mcp` で発行し、MCP 設定の env に指定してください。"
-  );
-  process.exit(1);
-}
+// アプリ自身が listen しているポート。127.0.0.1 に閉じてプロキシを介さない内部呼び出しにする。
+const BASE_URL = `http://127.0.0.1:${process.env.PORT || 8888}`;
 
 // REST を呼び出す。非 2xx は API の統一エラー形式 { error: { message } } を Error にして投げる。
 export async function api(
   method: string,
   path: string,
+  token: string,
   body?: unknown
 ): Promise<unknown> {
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${TOKEN}`,
+      Authorization: `Bearer ${token}`,
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,

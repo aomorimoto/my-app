@@ -34,3 +34,11 @@ export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 分
   limit: 300, // IP あたり 15 分で 300 回まで
 });
+
+// リモート MCP（/mcp）の保険的な制限。ツール呼び出しはループバック /api 側でも
+// apiLimiter を通るため、ここは主に initialize/tools-list の乱発対策。
+export const mcpLimiter = rateLimit({
+  ...commonOptions,
+  windowMs: 15 * 60 * 1000, // 15 分
+  limit: 300,
+});
