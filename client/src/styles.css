@@ -749,3 +749,242 @@ details.card summary {
   flex: 1 1 100%;
   margin: 0;
 }
+
+/* ===== アカウントのドロップダウン（トップバー右） ===== */
+.account {
+  position: relative;
+}
+.account-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 4px 8px 4px 4px;
+  font: inherit;
+  color: var(--text);
+}
+.account-btn:hover {
+  background: #f1f5f9;
+  border-color: var(--border);
+}
+.account-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.account-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-caret {
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 6px;
+  z-index: 50;
+}
+.account-menu-head {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.account-menu-name {
+  font-weight: 600;
+}
+.account-menu-email {
+  font-size: 0.8rem;
+}
+.account-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 10px;
+  font: inherit;
+  color: var(--text);
+}
+.account-menu-item:hover:not(:disabled) {
+  background: #f1f5f9;
+}
+.account-menu-item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.account-menu-item.danger {
+  color: var(--danger);
+}
+
+/* ===== メイン画面（ダッシュボード + ワークスペース一覧の2ペイン） ===== */
+.home {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(240px, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+.home-active-ws {
+  margin-top: -8px;
+}
+.home-ws h1 {
+  margin-top: 0;
+}
+@media (max-width: 760px) {
+  .home {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+}
+
+/* ワークスペース一覧（並べ替え可能なカード） */
+.ws-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ws-card {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.ws-card.active {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+.ws-reorder {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 4px;
+  background: #f8fafc;
+  border-right: 1px solid var(--border);
+}
+.ws-arrow {
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.ws-arrow:hover:not(:disabled) {
+  background: #e2e8f0;
+  color: var(--text);
+}
+.ws-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.ws-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: none;
+  border: none;
+  text-align: left;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+}
+.ws-open:hover {
+  background: #f8fafc;
+}
+.ws-name {
+  font-weight: 600;
+}
+.ws-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.badge.ws-active-badge {
+  background: #dbeafe;
+  color: var(--primary-dark);
+}
+
+/* ===== ワークスペース内サブナビ ===== */
+.ws-nav {
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.ws-nav-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.ws-nav-home {
+  text-decoration: none;
+  color: var(--primary);
+  font-size: 0.9rem;
+}
+.ws-nav-title {
+  font-weight: 700;
+}
+.ws-nav-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ws-tab {
+  text-decoration: none;
+  color: var(--muted);
+  padding: 8px 14px;
+  border-radius: 8px 8px 0 0;
+  font-size: 0.92rem;
+  border-bottom: 2px solid transparent;
+}
+.ws-tab:hover {
+  color: var(--text);
+  background: #f1f5f9;
+}
+.ws-tab.active {
+  color: var(--primary);
+  font-weight: 600;
+  border-bottom-color: var(--primary);
+}
+
+/* AI エージェント担当者バッジ（色は inline 指定） */
+.badge.assignee.agent {
+  color: #fff;
+}
+/* エージェント一覧のアイコン付きスウォッチ */
+.category-item .swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+}

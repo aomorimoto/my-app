@@ -8,8 +8,8 @@ export interface TaskInput {
   status?: string;
   priority?: string;
   dueDate?: string | null;
-  categoryId?: number | null;
   assigneeId?: number | null;
+  assigneeAgentId?: number | null;
   parentId?: number | null;
   tagIds?: number[];
 }
@@ -18,8 +18,8 @@ export function fetchTasks(filters: TaskFilters) {
   const params = new URLSearchParams();
   if (filters.status) params.set("status", filters.status);
   if (filters.priority) params.set("priority", filters.priority);
-  if (filters.category) params.set("category", filters.category);
   if (filters.assignee) params.set("assignee", filters.assignee);
+  if (filters.agent) params.set("agent", filters.agent);
   if (filters.tag) params.set("tag", filters.tag);
   if (filters.sort) params.set("sort", filters.sort);
   if (filters.q && filters.q.trim()) params.set("q", filters.q.trim());

@@ -1,13 +1,10 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
 import { useMe } from "../queries/auth";
 import {
   useMembers,
   useAddMember,
   useUpdateMemberRole,
   useRemoveMember,
-  useCreateWorkspace,
-  useActivateWorkspace,
 } from "../queries/workspaces";
 import { ROLE_LABEL, memberLabel } from "../labels";
 import type { Role } from "../types";
@@ -15,7 +12,6 @@ import type { Role } from "../types";
 const ASSIGNABLE_ROLES: Role[] = ["ADMIN", "MEMBER"];
 
 export default function WorkspacesPage() {
-  const navigate = useNavigate();
   const meQ = useMe();
   const active = meQ.data?.activeWorkspace;
   const activeId = active?.id;
@@ -26,15 +22,10 @@ export default function WorkspacesPage() {
   const addMember = useAddMember(activeId ?? 0);
   const updateRole = useUpdateMemberRole(activeId ?? 0);
   const removeMember = useRemoveMember(activeId ?? 0);
-  const createWs = useCreateWorkspace();
-  const activateWs = useActivateWorkspace();
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("MEMBER");
   const [addError, setAddError] = useState<string | null>(null);
-
-  const [wsName, setWsName] = useState("");
-  const [wsError, setWsError] = useState<string | null>(null);
 
   const members = membersQ.data?.members ?? [];
 
@@ -59,32 +50,15 @@ export default function WorkspacesPage() {
     }
   };
 
-  const onCreateWs = (e: FormEvent) => {
-    e.preventDefault();
-    setWsError(null);
-    createWs.mutate(
-      { name: wsName },
-      {
-        onSuccess: (data) => {
-          // 作成したワークスペースに切り替えてタスク画面へ
-          activateWs.mutate(data.workspace.id, { onSuccess: () => navigate("/tasks") });
-        },
-        onError: (err) => setWsError(err.message || "作成に失敗しました。"),
-      }
-    );
-  };
-
   return (
     <>
-      <h1>ワークスペース</h1>
+      <h1>メンバー</h1>
 
       {active && (
         <p className="muted">
           現在: <strong>{active.name}</strong>（あなたの役割: {ROLE_LABEL[active.role]}）
         </p>
       )}
-
-      <h2>メンバー</h2>
       {membersQ.isLoading ? (
         <p className="muted">読み込み中…</p>
       ) : (
@@ -165,27 +139,9 @@ export default function WorkspacesPage() {
         </form>
       )}
 
-      <form className="form card ws-create-form" onSubmit={onCreateWs}>
-        <h2>新しいワークスペースを作成</h2>
-        {wsError && <p className="error">{wsError}</p>}
-        <label className="grow">
-          名前
-          <input
-            type="text"
-            value={wsName}
-            onChange={(e) => setWsName(e.target.value)}
-            placeholder="チーム名・プロジェクト名"
-            required
-          />
-        </label>
-        <button
-          type="submit"
-          className="btn-primary"
-          disabled={createWs.isPending || activateWs.isPending}
-        >
-          作成して切り替え
-        </button>
-      </form>
+      <p className="muted">
+        新しいワークスペースの作成や切り替えは、上部の「← ホーム」から行えます。
+      </p>
     </>
   );
 }

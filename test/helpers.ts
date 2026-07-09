@@ -11,7 +11,7 @@ export const app = createApp();
 // モデル名がそのままテーブル名（大文字始まり）なので二重引用符で囲む。session は @@map 済み。
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE "Comment","TaskTag","Task","Tag","Category","Membership","Workspace","PersonalAccessToken","User","session" RESTART IDENTITY CASCADE`
+    `TRUNCATE TABLE "Comment","TaskTag","Task","Tag","Agent","Membership","Workspace","PersonalAccessToken","User","session" RESTART IDENTITY CASCADE`
   );
 }
 

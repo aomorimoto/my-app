@@ -29,8 +29,8 @@ export default function LoginPage() {
     }
   }, [meQ.data?.user, returnTo]);
 
-  // すでにログイン済み: 復帰先があれば上の effect が遷移する（その間は描画しない）。無ければタスク一覧へ。
-  if (meQ.data?.user) return returnTo ? null : <Navigate to="/tasks" replace />;
+  // すでにログイン済み: 復帰先があれば上の effect が遷移する（その間は描画しない）。無ければメイン画面へ。
+  if (meQ.data?.user) return returnTo ? null : <Navigate to="/" replace />;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -39,9 +39,9 @@ export default function LoginPage() {
       { email, password },
       {
         onSuccess: () => {
-          // OAuth 認可フローの途中なら /authorize へ全ページ遷移、通常はタスク一覧へ。
+          // OAuth 認可フローの途中なら /authorize へ全ページ遷移、通常はメイン画面へ。
           if (returnTo) window.location.assign(returnTo);
-          else navigate("/tasks");
+          else navigate("/");
         },
         onError: (err) => setError(err.message || "ログインに失敗しました。"),
       }

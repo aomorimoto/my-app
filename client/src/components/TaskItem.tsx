@@ -39,13 +39,13 @@ export default function TaskItem({ task }: { task: Task }) {
           <span className={`badge prio prio-${task.priority.toLowerCase()}`}>
             優先度: {PRIORITY_LABEL[task.priority]}
           </span>
-          {task.category && (
-            <span className="badge cat" style={{ background: task.category.color }}>
-              {task.category.name}
-            </span>
-          )}
           {task.assignee && (
             <span className="badge assignee">👤 {memberLabel(task.assignee)}</span>
+          )}
+          {task.assigneeAgent && (
+            <span className="badge assignee agent" style={{ background: task.assigneeAgent.color }}>
+              🤖 {task.assigneeAgent.name}
+            </span>
           )}
           {task.tags?.map((t) => (
             <span key={t.id} className="badge tag" style={{ background: t.color }}>

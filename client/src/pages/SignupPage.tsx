@@ -11,7 +11,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
-  if (meQ.data?.user) return <Navigate to="/tasks" replace />;
+  if (meQ.data?.user) return <Navigate to="/" replace />;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -19,7 +19,7 @@ export default function SignupPage() {
     signup.mutate(
       { email, password, name: name || undefined },
       {
-        onSuccess: () => navigate("/tasks"),
+        onSuccess: () => navigate("/"),
         onError: (err) => setError(err.message || "登録に失敗しました。"),
       }
     );

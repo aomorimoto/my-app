@@ -7,11 +7,19 @@ import {
   useToggleTask,
   useDeleteTask,
 } from "../queries/tasks";
-import { useCategories } from "../queries/categories";
+import { useAgents } from "../queries/agents";
 import { useTags } from "../queries/tags";
 import { useMe } from "../queries/auth";
 import { useMembers } from "../queries/workspaces";
-import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
+import {
+  STATUSES,
+  PRIORITIES,
+  STATUS_LABEL,
+  PRIORITY_LABEL,
+  memberLabel,
+  assigneeValue,
+  parseAssignee,
+} from "../labels";
 import TagSelector from "../components/TagSelector";
 import CommentThread from "../components/CommentThread";
 
@@ -21,8 +29,8 @@ interface FormState {
   status: string;
   priority: string;
   dueDate: string;
-  categoryId: string;
-  assigneeId: string;
+  // 担当者は人間/AI を1セレクトで扱う（"" | "u:<id>" | "a:<id>"）
+  assignee: string;
 }
 
 const INITIAL: FormState = {
@@ -31,8 +39,7 @@ const INITIAL: FormState = {
   status: "TODO",
   priority: "MEDIUM",
   dueDate: "",
-  categoryId: "",
-  assigneeId: "",
+  assignee: "",
 };
 
 export default function TaskDetailPage() {
@@ -41,7 +48,7 @@ export default function TaskDetailPage() {
   const navigate = useNavigate();
 
   const taskQ = useTask(taskId);
-  const catsQ = useCategories();
+  const agentsQ = useAgents();
   const tagsQ = useTags();
   const meQ = useMe();
   const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
@@ -67,8 +74,7 @@ export default function TaskDetailPage() {
         status: task.status,
         priority: task.priority,
         dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
-        categoryId: task.categoryId ? String(task.categoryId) : "",
-        assigneeId: task.assigneeId ? String(task.assigneeId) : "",
+        assignee: assigneeValue(task),
       });
       setTagIds((task.tags ?? []).map((t) => t.id));
     }
@@ -78,7 +84,7 @@ export default function TaskDetailPage() {
   if (taskQ.isError || !taskQ.data?.task) return <p className="error">タスクが見つかりません。</p>;
 
   const task = taskQ.data.task;
-  const categories = catsQ.data?.categories ?? [];
+  const agents = agentsQ.data?.agents ?? [];
   const tags = tagsQ.data?.tags ?? [];
   const members = membersQ.data?.members ?? [];
   const subtasks = task.subtasks ?? [];
@@ -95,8 +101,7 @@ export default function TaskDetailPage() {
         status: form.status,
         priority: form.priority,
         dueDate: form.dueDate || null,
-        categoryId: form.categoryId ? Number(form.categoryId) : null,
-        assigneeId: form.assigneeId ? Number(form.assigneeId) : null,
+        ...parseAssignee(form.assignee),
         tagIds,
       },
       {
@@ -161,25 +166,27 @@ export default function TaskDetailPage() {
             <input type="date" value={form.dueDate} onChange={(e) => set({ dueDate: e.target.value })} />
           </label>
           <label>
-            カテゴリ
-            <select value={form.categoryId} onChange={(e) => set({ categoryId: e.target.value })}>
-              <option value="">なし</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
             担当者
-            <select value={form.assigneeId} onChange={(e) => set({ assigneeId: e.target.value })}>
+            <select value={form.assignee} onChange={(e) => set({ assignee: e.target.value })}>
               <option value="">未割当</option>
-              {members.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {memberLabel(m)}
-                </option>
-              ))}
+              {members.length > 0 && (
+                <optgroup label="👤 メンバー">
+                  {members.map((m) => (
+                    <option key={`u:${m.id}`} value={`u:${m.id}`}>
+                      {memberLabel(m)}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              {agents.length > 0 && (
+                <optgroup label="🤖 AI エージェント">
+                  {agents.map((a) => (
+                    <option key={`a:${a.id}`} value={`a:${a.id}`}>
+                      {a.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
             </select>
           </label>
         </div>

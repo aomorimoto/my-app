@@ -1,8 +1,9 @@
 import { useDashboard } from "../queries/dashboard";
 import { STATUS_LABEL } from "../labels";
-import TaskItem from "../components/TaskItem";
+import TaskItem from "./TaskItem";
 
-export default function DashboardPage() {
+// ダッシュボード本体（メイン画面の左ペインで使用）。アクティブなワークスペースのサマリを表示する。
+export default function DashboardPanel() {
   const { data, isLoading, isError } = useDashboard();
 
   if (isLoading) return <p className="muted">読み込み中…</p>;
@@ -10,7 +11,6 @@ export default function DashboardPage() {
 
   const { summary, upcoming, myTasks } = data;
 
-  // 集計カード（色調は期限系＝警告、完了＝OK）
   const stats = [
     { key: "overdue", label: "期限超過", value: summary.overdue, tone: "danger" },
     { key: "dueToday", label: "今日締切", value: summary.dueToday, tone: "warn" },
@@ -22,8 +22,6 @@ export default function DashboardPage() {
 
   return (
     <>
-      <h1>ダッシュボード</h1>
-
       <section className="stat-grid">
         {stats.map((s) => (
           <div key={s.key} className={`stat-card ${s.tone}`}>

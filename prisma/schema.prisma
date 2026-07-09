@@ -21,6 +21,7 @@ model User {
   ownedWorkspaces Workspace[]  @relation("WorkspaceOwner")
   createdTasks    Task[]       @relation("TaskCreator")
   assignedTasks   Task[]       @relation("TaskAssignee")
+  agents          Agent[]      @relation("AgentOwner") // 本人が使う AI エージェント
   comments        Comment[]    @relation("CommentAuthor")
   personalAccessTokens PersonalAccessToken[] // MCP 等の Bearer 認証用トークン
   // リモート MCP の OAuth（自前認可サーバ）で発行する認可コード/トークン
@@ -37,9 +38,9 @@ model Workspace {
   owner      User         @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   createdAt  DateTime     @default(now())
   members    Membership[]
-  categories Category[]
   tasks      Task[]
   tags       Tag[]
+  agents     Agent[] // ワークスペースに属する AI エージェント（担当者に指定できる）
 }
 
 // ワークスペースへの参加者と役割
@@ -51,18 +52,25 @@ model Membership {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   role        Role      @default(MEMBER)
   joinedAt    DateTime  @default(now())
+  position    Int       @default(0) // ユーザーごとのワークスペース表示順（メイン画面の並べ替え用）
 
   @@unique([userId, workspaceId])
 }
 
-// タスクを分類するカテゴリ（ワークスペースごとに作成）
-model Category {
-  id          Int       @id @default(autoincrement())
-  name        String
-  color       String    @default("#888888") // UI 表示用の色（HEX）
-  workspaceId Int
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  tasks       Task[]
+// AI エージェント（ワークスペースごと）。人間メンバーと同列に「担当者」に指定できる。
+// 1人のユーザーが複数のエージェントを登録し、エージェントごとのタスクを管理するユースケースに対応する。
+model Agent {
+  id            Int       @id @default(autoincrement())
+  name          String
+  color         String    @default("#6b7280") // UI 表示用の色（HEX）
+  workspaceId   Int
+  workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ownerId       Int? // このエージェントを主に使うユーザー（任意。表示用）
+  owner         User?     @relation("AgentOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdAt     DateTime  @default(now())
+  assignedTasks Task[]    @relation("TaskAgentAssignee")
+
+  @@unique([workspaceId, name]) // WS 内でエージェント名の重複を禁止
 }
 
 // タスク
@@ -73,14 +81,15 @@ model Task {
   status      Status    @default(TODO)
   priority    Priority  @default(MEDIUM)
   dueDate     DateTime?
-  categoryId  Int?
-  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   workspaceId Int
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   creatorId   Int // 作成者
   creator     User      @relation("TaskCreator", fields: [creatorId], references: [id])
-  assigneeId  Int? // 担当者（未割当は null）。API/UI 連携は Phase 3b。
-  assignee    User?     @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  // 担当者は「人間メンバー(assigneeId)」または「AIエージェント(assigneeAgentId)」のどちらか一方。
+  assigneeId      Int? // 担当ユーザー（未割当は null）
+  assignee        User?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeAgentId Int? // 担当 AI エージェント（未割当は null）
+  assigneeAgent   Agent? @relation("TaskAgentAssignee", fields: [assigneeAgentId], references: [id], onDelete: SetNull)
   parentId    Int? // 親タスク（サブタスク時に設定）。2階層のみ許可。
   parent      Task?     @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks    Task[]    @relation("Subtasks")
@@ -90,7 +99,7 @@ model Task {
   updatedAt   DateTime  @updatedAt
 }
 
-// タグ（ワークスペースごと）。カテゴリ（1タスク1つ）とは別軸で、1タスクに複数付与できる。
+// タグ（ワークスペースごと）。1タスクに複数付与できる分類軸。
 model Tag {
   id          Int       @id @default(autoincrement())
   name        String

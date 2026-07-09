@@ -14,10 +14,10 @@ type Priority = (typeof PRIORITIES)[number];
 const isStatus = (v: unknown): v is Status => STATUSES.includes(v as Status);
 const isPriority = (v: unknown): v is Priority => PRIORITIES.includes(v as Priority);
 
-// タスクレスポンス共通の include（カテゴリ＋担当者＋タグ＋サブタスク＋コメント件数）
+// タスクレスポンス共通の include（担当者[人間/AI]＋タグ＋サブタスク＋コメント件数）
 const taskInclude = {
-  category: true,
   assignee: { select: { id: true, email: true, name: true } },
+  assigneeAgent: { select: { id: true, name: true, color: true } },
   taskTags: { include: { tag: true } },
   subtasks: {
     select: { id: true, title: true, status: true, priority: true },
@@ -32,15 +32,7 @@ function shapeTask<T extends { taskTags: { tag: unknown }[] }>(task: T) {
   return { ...rest, tags: taskTags.map((tt) => tt.tag) };
 }
 
-// 指定カテゴリが対象ワークスペースのものか検証する。異なる/不明なら 400。
-async function assertCategoryInWorkspace(workspaceId: number, categoryId: number) {
-  const found = await prisma.category.findFirst({ where: { id: categoryId, workspaceId } });
-  if (!found) {
-    throw new HttpError(400, "指定されたカテゴリが見つかりません。", "INVALID_CATEGORY");
-  }
-}
-
-// 指定担当者が対象ワークスペースのメンバーか検証する。非メンバーなら 400。
+// 指定担当者（人間）が対象ワークスペースのメンバーか検証する。非メンバーなら 400。
 async function assertAssigneeInWorkspace(workspaceId: number, assigneeId: number) {
   const member = await prisma.membership.findUnique({
     where: { userId_workspaceId: { userId: assigneeId, workspaceId } },
@@ -50,6 +42,25 @@ async function assertAssigneeInWorkspace(workspaceId: number, assigneeId: number
       400,
       "指定された担当者はこのワークスペースのメンバーではありません。",
       "INVALID_ASSIGNEE"
+    );
+  }
+}
+
+// 指定エージェントが対象ワークスペースのものか検証する。異なる/不明なら 400。
+async function assertAgentInWorkspace(workspaceId: number, agentId: number) {
+  const found = await prisma.agent.findFirst({ where: { id: agentId, workspaceId } });
+  if (!found) {
+    throw new HttpError(400, "指定されたエージェントが見つかりません。", "INVALID_AGENT");
+  }
+}
+
+// 担当者はユーザーかエージェントのどちらか一方だけ。両方指定は 400。
+function assertSingleAssignee(assigneeId?: number | null, assigneeAgentId?: number | null) {
+  if (assigneeId != null && assigneeAgentId != null) {
+    throw new HttpError(
+      400,
+      "担当者はユーザーかエージェントのどちらか一方だけ指定できます。",
+      "ASSIGNEE_CONFLICT"
     );
   }
 }
@@ -106,14 +117,14 @@ const PAGE_SIZE = 20;
 // `page` クエリがある時だけページネーションを適用（無い時は従来どおり全件 `{ tasks }` を返す）。
 apiTasksRouter.get("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
-  const { status, priority, category, assignee, tag, sort } = req.query;
+  const { status, priority, assignee, agent, tag, sort } = req.query;
 
   // 絞り込み条件を組み立てる（ワークスペースのトップレベルタスクに限定）
   const where: any = { workspaceId, parentId: null };
   if (isStatus(status)) where.status = status;
   if (isPriority(priority)) where.priority = priority;
-  if (category && !Number.isNaN(Number(category))) where.categoryId = Number(category);
   if (assignee && !Number.isNaN(Number(assignee))) where.assigneeId = Number(assignee);
+  if (agent && !Number.isNaN(Number(agent))) where.assigneeAgentId = Number(agent);
   if (tag && !Number.isNaN(Number(tag))) where.taskTags = { some: { tagId: Number(tag) } };
 
   // キーワード検索（タイトル/説明の部分一致・大文字小文字無視）。他条件とは AND。
@@ -171,8 +182,9 @@ apiTasksRouter.post("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
   const userId = req.userId!;
   const input = taskCreateSchema.parse(req.body);
-  if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
+  assertSingleAssignee(input.assigneeId, input.assigneeAgentId);
   if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);
+  if (input.assigneeAgentId != null) await assertAgentInWorkspace(workspaceId, input.assigneeAgentId);
   if (input.parentId != null) await assertParentValid(workspaceId, input.parentId);
   if (input.tagIds) await assertTagsInWorkspace(workspaceId, input.tagIds);
 
@@ -183,8 +195,8 @@ apiTasksRouter.post("/", async (req, res) => {
       status: input.status ?? "TODO",
       priority: input.priority ?? "MEDIUM",
       dueDate: input.dueDate ?? null,
-      categoryId: input.categoryId ?? null,
       assigneeId: input.assigneeId ?? null,
+      assigneeAgentId: input.assigneeAgentId ?? null,
       parentId: input.parentId ?? null,
       workspaceId,
       creatorId: userId,
@@ -219,8 +231,9 @@ apiTasksRouter.patch("/:id", async (req, res) => {
   const existing = await prisma.task.findFirst({ where: { id, workspaceId } });
   if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
 
-  if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
+  assertSingleAssignee(input.assigneeId, input.assigneeAgentId);
   if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);
+  if (input.assigneeAgentId != null) await assertAgentInWorkspace(workspaceId, input.assigneeAgentId);
   if (input.parentId != null) await assertParentValid(workspaceId, input.parentId, id);
   if (input.tagIds) await assertTagsInWorkspace(workspaceId, input.tagIds);
 
@@ -231,8 +244,15 @@ apiTasksRouter.patch("/:id", async (req, res) => {
   if (input.status !== undefined) data.status = input.status;
   if (input.priority !== undefined) data.priority = input.priority;
   if (input.dueDate !== undefined) data.dueDate = input.dueDate;
-  if (input.categoryId !== undefined) data.categoryId = input.categoryId;
-  if (input.assigneeId !== undefined) data.assigneeId = input.assigneeId;
+  // 担当者はユーザー/エージェントの相互排他。一方を割り当てたら他方を必ず外す。
+  if (input.assigneeId !== undefined) {
+    data.assigneeId = input.assigneeId;
+    if (input.assigneeId != null) data.assigneeAgentId = null;
+  }
+  if (input.assigneeAgentId !== undefined) {
+    data.assigneeAgentId = input.assigneeAgentId;
+    if (input.assigneeAgentId != null) data.assigneeId = null;
+  }
   if (input.parentId !== undefined) data.parentId = input.parentId;
   // tagIds が来たら全置き換え（既存の TaskTag を消してから作り直す）
   if (input.tagIds !== undefined) {

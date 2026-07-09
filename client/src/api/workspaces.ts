@@ -7,6 +7,13 @@ export const fetchWorkspaces = () =>
 export const createWorkspace = (body: { name: string }) =>
   apiFetch<{ workspace: Workspace }>("/api/workspaces", { method: "POST", body });
 
+// メイン画面の並べ替え結果を保存する（表示順に並んだ workspaceId の配列）
+export const reorderWorkspaces = (order: number[]) =>
+  apiFetch<{ workspaces: Workspace[] }>("/api/workspaces/reorder", {
+    method: "POST",
+    body: { order },
+  });
+
 export const activateWorkspace = (id: number) =>
   apiFetch<{ activeWorkspace: ActiveWorkspace | null }>(`/api/workspaces/${id}/activate`, {
     method: "POST",

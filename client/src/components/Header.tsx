@@ -1,59 +1,83 @@
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMe, useLogout } from "../queries/auth";
-import { useWorkspaces, useActivateWorkspace } from "../queries/workspaces";
+import { memberLabel } from "../labels";
 
+// グローバルなトップバー。表示はアプリ名とアカウントのみ。
+// アカウント名をクリックするとドロップダウン（設定・ログアウト）が開く。
 export default function Header() {
   const { data } = useMe();
   const logout = useLogout();
   const navigate = useNavigate();
-  const wsQ = useWorkspaces();
-  const activate = useActivateWorkspace();
-
   const user = data?.user;
-  const activeId = data?.activeWorkspace?.id;
-  const workspaces = wsQ.data?.workspaces ?? [];
+
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // 外側クリック / Esc で閉じる
+  useEffect(() => {
+    if (!open) return;
+    const onClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const onLogout = () => {
+    setOpen(false);
     logout.mutate(undefined, { onSuccess: () => navigate("/login") });
-  };
-
-  const onSwitch = (value: string) => {
-    const id = Number(value);
-    if (id && id !== activeId) activate.mutate(id);
   };
 
   return (
     <header className="site-header">
-      <Link className="brand" to="/dashboard">
+      <Link className="brand" to="/">
         📋 タスク管理
       </Link>
-      <nav>
-        <Link to="/dashboard">ダッシュボード</Link>
-        <Link to="/tasks">タスク</Link>
-        <Link to="/calendar">カレンダー</Link>
-        <Link to="/categories">カテゴリ</Link>
-        <Link to="/tags">タグ</Link>
-        <Link to="/workspaces">ワークスペース</Link>
-        {workspaces.length > 0 && (
-          <select
-            className="ws-switcher"
-            value={activeId ?? ""}
-            onChange={(e) => onSwitch(e.target.value)}
-            disabled={activate.isPending}
-            title="ワークスペースを切り替え"
+
+      {user && (
+        <div className="account" ref={menuRef}>
+          <button
+            type="button"
+            className="account-btn"
+            onClick={() => setOpen((v) => !v)}
+            aria-haspopup="menu"
+            aria-expanded={open}
           >
-            {workspaces.map((w) => (
-              <option key={w.id} value={w.id}>
-                🗂 {w.name}
-              </option>
-            ))}
-          </select>
-        )}
-        {user && <span className="user">{user.name || user.email}</span>}
-        <button type="button" className="link-btn" onClick={onLogout} disabled={logout.isPending}>
-          ログアウト
-        </button>
-      </nav>
+            <span className="account-avatar">{(memberLabel(user)[0] || "?").toUpperCase()}</span>
+            <span className="account-name">{memberLabel(user)}</span>
+            <span className="account-caret">▾</span>
+          </button>
+
+          {open && (
+            <div className="account-menu" role="menu">
+              <div className="account-menu-head">
+                <div className="account-menu-name">{user.name || "（名前未設定）"}</div>
+                <div className="account-menu-email muted">{user.email}</div>
+              </div>
+              <button type="button" className="account-menu-item" role="menuitem" disabled>
+                ⚙️ 設定（近日）
+              </button>
+              <button
+                type="button"
+                className="account-menu-item danger"
+                role="menuitem"
+                onClick={onLogout}
+                disabled={logout.isPending}
+              >
+                ⏻ ログアウト
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </header>
   );
 }

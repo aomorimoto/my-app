@@ -2,13 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchWorkspaces,
   createWorkspace,
+  reorderWorkspaces,
   activateWorkspace,
   fetchMembers,
   addMember,
   updateMemberRole,
   removeMember,
 } from "../api/workspaces";
-import type { Role } from "../types";
+import type { Role, Workspace } from "../types";
 
 export function useWorkspaces() {
   return useQuery({ queryKey: ["workspaces"], queryFn: fetchWorkspaces });
@@ -22,6 +23,17 @@ export function useCreateWorkspace() {
   });
 }
 
+// メイン画面の並べ替え。サーバ応答（新しい順序）で workspaces キャッシュを差し替える。
+export function useReorderWorkspaces() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: number[]) => reorderWorkspaces(order),
+    onSuccess: (data) => {
+      qc.setQueryData<{ workspaces: Workspace[] }>(["workspaces"], data);
+    },
+  });
+}
+
 // ワークスペース切替。表示データが総入れ替わるので関連キャッシュを無効化する。
 export function useActivateWorkspace() {
   const qc = useQueryClient();
@@ -31,7 +43,8 @@ export function useActivateWorkspace() {
       qc.invalidateQueries({ queryKey: ["me"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["agents"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
       qc.invalidateQueries({ queryKey: ["members"] });
     },
   });

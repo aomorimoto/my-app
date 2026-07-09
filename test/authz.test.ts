@@ -17,16 +17,17 @@ describe("authorization", () => {
     expect(res.status).toBe(404);
   });
 
-  it("他ワークスペースのカテゴリは削除できない（404）", async () => {
-    const a = await signupAgent({ email: "cat-a@example.com" });
-    const b = await signupAgent({ email: "cat-b@example.com" });
+  it("他ワークスペースのエージェントは削除できない（404）", async () => {
+    const a = await signupAgent({ email: "agent-a@example.com" });
+    const b = await signupAgent({ email: "agent-b@example.com" });
 
-    // A の既定カテゴリの 1 つを取得
-    const cats = await a.agent.get("/api/categories");
-    const catId = cats.body.categories[0].id;
+    // A がエージェントを作成
+    const created = await a.agent.post("/api/agents").send({ name: "リサーチ担当" });
+    expect(created.status).toBe(201);
+    const agentId = created.body.agent.id;
 
-    // B は自分の WS にスコープされるため、A のカテゴリは対象外（404）
-    const res = await b.agent.delete(`/api/categories/${catId}`);
+    // B は自分の WS にスコープされるため、A のエージェントは対象外（404）
+    const res = await b.agent.delete(`/api/agents/${agentId}`);
     expect(res.status).toBe(404);
   });
 
@@ -43,7 +44,7 @@ describe("authorization", () => {
     expect(res.status).toBe(404);
   });
 
-  it("MEMBER はカテゴリを作成できない（403）", async () => {
+  it("MEMBER はタグを作成できない（403）", async () => {
     const owner = await signupAgent({ email: "team-owner@example.com" });
     const member = await signupAgent({ email: "team-member@example.com" });
 
@@ -62,8 +63,8 @@ describe("authorization", () => {
     const activate = await member.agent.post(`/api/workspaces/${wsId}/activate`);
     expect(activate.status).toBe(200);
 
-    // MEMBER はカテゴリ作成不可（OWNER / ADMIN のみ）
-    const res = await member.agent.post("/api/categories").send({ name: "新カテゴリ" });
+    // MEMBER はタグ作成不可（OWNER / ADMIN のみ）
+    const res = await member.agent.post("/api/tags").send({ name: "新タグ" });
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe("FORBIDDEN");
   });

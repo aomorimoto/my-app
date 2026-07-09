@@ -34,15 +34,18 @@ export interface Member {
   joinedAt: string;
 }
 
-export interface Category {
+// AI エージェント（人間メンバーと同列に担当者へ指定できる）
+export interface Agent {
   id: number;
   name: string;
   color: string;
   workspaceId: number;
-  _count?: { tasks: number };
+  ownerId: number | null;
+  owner?: User | null;
+  _count?: { assignedTasks: number };
 }
 
-// タグ（カテゴリと別軸で複数付与できる）
+// タグ（複数付与できる）
 export interface Tag {
   id: number;
   name: string;
@@ -78,12 +81,13 @@ export interface Task {
   status: Status;
   priority: Priority;
   dueDate: string | null;
-  categoryId: number | null;
-  category?: Category | null;
   workspaceId: number;
   creatorId: number;
-  assigneeId: number | null; // 担当者。UI 連携は Phase 3b
+  // 担当者は「人間メンバー」または「AIエージェント」のどちらか一方
+  assigneeId: number | null;
   assignee?: User | null;
+  assigneeAgentId: number | null;
+  assigneeAgent?: Pick<Agent, "id" | "name" | "color"> | null;
   parentId: number | null; // 親タスク（サブタスク時に設定）
   tags?: Tag[]; // API が taskTags を平坦化して返す
   subtasks?: Subtask[]; // 子タスク（浅い表現）
@@ -111,8 +115,8 @@ export interface DashboardData {
 export interface TaskFilters {
   status?: Status | "";
   priority?: Priority | "";
-  category?: string; // カテゴリID（文字列）または ""
-  assignee?: string; // 担当者のユーザーID（文字列）または ""
+  assignee?: string; // 担当ユーザーID（文字列）または ""
+  agent?: string; // 担当エージェントID（文字列）または ""
   tag?: string; // タグID（文字列）または ""
   sort?: "" | "dueDate" | "priority";
   q?: string; // キーワード検索（タイトル/説明の部分一致）

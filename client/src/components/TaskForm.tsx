@@ -1,17 +1,24 @@
 import { useState, type FormEvent } from "react";
-import type { Category, Member, Tag } from "../types";
-import { STATUSES, PRIORITIES, STATUS_LABEL, PRIORITY_LABEL, memberLabel } from "../labels";
+import type { Agent, Member, Tag } from "../types";
+import {
+  STATUSES,
+  PRIORITIES,
+  STATUS_LABEL,
+  PRIORITY_LABEL,
+  memberLabel,
+  parseAssignee,
+} from "../labels";
 import { useCreateTask } from "../queries/tasks";
 import TagSelector from "./TagSelector";
 
 // タスク追加フォーム
 export default function TaskForm({
-  categories,
   members,
+  agents,
   tags,
 }: {
-  categories: Category[];
   members: Member[];
+  agents: Agent[];
   tags: Tag[];
 }) {
   const create = useCreateTask();
@@ -20,8 +27,8 @@ export default function TaskForm({
   const [status, setStatus] = useState("TODO");
   const [priority, setPriority] = useState("MEDIUM");
   const [dueDate, setDueDate] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  // 担当者は人間/AI を1つのセレクトで扱う（"" | "u:<id>" | "a:<id>"）
+  const [assignee, setAssignee] = useState("");
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,8 +42,7 @@ export default function TaskForm({
         status,
         priority,
         dueDate: dueDate || null,
-        categoryId: categoryId ? Number(categoryId) : null,
-        assigneeId: assigneeId ? Number(assigneeId) : null,
+        ...parseAssignee(assignee),
         tagIds,
       },
       {
@@ -46,8 +52,7 @@ export default function TaskForm({
           setStatus("TODO");
           setPriority("MEDIUM");
           setDueDate("");
-          setCategoryId("");
-          setAssigneeId("");
+          setAssignee("");
           setTagIds([]);
         },
         onError: (err) => setError(err.message || "追加に失敗しました。"),
@@ -104,25 +109,27 @@ export default function TaskForm({
           <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
         </label>
         <label>
-          カテゴリ
-          <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-            <option value="">なし</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
           担当者
-          <select value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
+          <select value={assignee} onChange={(e) => setAssignee(e.target.value)}>
             <option value="">未割当</option>
-            {members.map((m) => (
-              <option key={m.id} value={m.id}>
-                {memberLabel(m)}
-              </option>
-            ))}
+            {members.length > 0 && (
+              <optgroup label="👤 メンバー">
+                {members.map((m) => (
+                  <option key={`u:${m.id}`} value={`u:${m.id}`}>
+                    {memberLabel(m)}
+                  </option>
+                ))}
+              </optgroup>
+            )}
+            {agents.length > 0 && (
+              <optgroup label="🤖 AI エージェント">
+                {agents.map((a) => (
+                  <option key={`a:${a.id}`} value={`a:${a.id}`}>
+                    {a.name}
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </select>
         </label>
         <div className="tags-field">

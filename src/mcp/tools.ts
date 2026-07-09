@@ -33,8 +33,20 @@ const taskFields = {
   status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).optional(),
   priority: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
   dueDate: z.string().describe("ISO 日付（例 2026-07-31）。空にするには null").nullable().optional(),
-  categoryId: z.number().int().positive().nullable().optional(),
-  assigneeId: z.number().int().positive().nullable().optional(),
+  assigneeId: z
+    .number()
+    .int()
+    .positive()
+    .describe("担当ユーザーID（人間メンバー）。エージェントとは排他")
+    .nullable()
+    .optional(),
+  assigneeAgentId: z
+    .number()
+    .int()
+    .positive()
+    .describe("担当エージェントID（AI）。ユーザー担当とは排他")
+    .nullable()
+    .optional(),
   parentId: z.number().int().positive().describe("親タスクID（サブタスク化）").nullable().optional(),
   tagIds: z.array(z.number().int().positive()).optional(),
 };
@@ -48,12 +60,12 @@ export function registerTaskappTools(server: McpServer) {
     {
       title: "タスク一覧",
       description:
-        "アクティブなワークスペースのトップレベルタスクを一覧する。status/priority/category/assignee/tag による絞り込み、q によるキーワード検索、sort（dueDate|priority）、page によるページネーションに対応。",
+        "アクティブなワークスペースのトップレベルタスクを一覧する。status/priority/assignee(担当ユーザー)/agent(担当エージェント)/tag による絞り込み、q によるキーワード検索、sort（dueDate|priority）、page によるページネーションに対応。",
       inputSchema: {
         status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).optional(),
         priority: z.enum(["HIGH", "MEDIUM", "LOW"]).optional(),
-        category: z.number().int().positive().describe("カテゴリID").optional(),
-        assignee: z.number().int().positive().describe("担当者ユーザーID").optional(),
+        assignee: z.number().int().positive().describe("担当ユーザーID").optional(),
+        agent: z.number().int().positive().describe("担当エージェントID").optional(),
         tag: z.number().int().positive().describe("タグID").optional(),
         q: z.string().describe("タイトル/説明のキーワード").optional(),
         sort: z.enum(["dueDate", "priority"]).optional(),
@@ -76,14 +88,15 @@ export function registerTaskappTools(server: McpServer) {
   );
 
   server.registerTool(
-    "list_categories",
+    "list_agents",
     {
-      title: "カテゴリ一覧",
-      description: "アクティブなワークスペースのカテゴリ一覧（タスク件数付き）を取得する。",
+      title: "エージェント一覧",
+      description:
+        "アクティブなワークスペースの AI エージェント一覧（担当タスク件数付き）を取得する。create_task/update_task の assigneeAgentId に指定できる。",
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
-    async (_args, extra) => ok(await api("GET", "/api/categories", tokenOf(extra)))
+    async (_args, extra) => ok(await api("GET", "/api/agents", tokenOf(extra)))
   );
 
   // --- 書き込み ---
@@ -93,7 +106,7 @@ export function registerTaskappTools(server: McpServer) {
     {
       title: "タスク作成",
       description:
-        "タスクを新規作成する。title は必須。categoryId/assigneeId/tagIds は同ワークスペースのものだけ指定可。",
+        "タスクを新規作成する。title は必須。assigneeId/assigneeAgentId/tagIds は同ワークスペースのものだけ指定可（担当はユーザーかエージェントの一方のみ）。",
       inputSchema: taskFields,
     },
     async (args, extra) => ok(await api("POST", "/api/tasks", tokenOf(extra), args))
@@ -136,15 +149,16 @@ export function registerTaskappTools(server: McpServer) {
   );
 
   server.registerTool(
-    "create_category",
+    "create_agent",
     {
-      title: "カテゴリ作成",
-      description: "カテゴリを新規作成する（OWNER/ADMIN のみ）。color は #RRGGBB。",
+      title: "エージェント作成",
+      description:
+        "AI エージェントを新規登録する（登録者が owner になる）。以後 assigneeAgentId で担当に指定できる。color は #RRGGBB。",
       inputSchema: {
         name: z.string().min(1).max(50),
         color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
       },
     },
-    async (args, extra) => ok(await api("POST", "/api/categories", tokenOf(extra), args))
+    async (args, extra) => ok(await api("POST", "/api/agents", tokenOf(extra), args))
   );
 }

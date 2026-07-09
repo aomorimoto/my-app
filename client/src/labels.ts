@@ -14,6 +14,27 @@ export function memberLabel(m: { name: string | null; email: string }): string {
   return m.name || m.email;
 }
 
+// 担当者セレクトは人間メンバーと AI エージェントを1つのドロップダウンで扱う。
+// 結合値: "" = 未割当 / "u:<id>" = ユーザー / "a:<id>" = エージェント。
+export function assigneeValue(t: {
+  assigneeId: number | null;
+  assigneeAgentId: number | null;
+}): string {
+  if (t.assigneeAgentId != null) return `a:${t.assigneeAgentId}`;
+  if (t.assigneeId != null) return `u:${t.assigneeId}`;
+  return "";
+}
+
+// 結合値を API 入力（assigneeId / assigneeAgentId）へ変換する。
+export function parseAssignee(value: string): {
+  assigneeId: number | null;
+  assigneeAgentId: number | null;
+} {
+  if (value.startsWith("a:")) return { assigneeId: null, assigneeAgentId: Number(value.slice(2)) };
+  if (value.startsWith("u:")) return { assigneeId: Number(value.slice(2)), assigneeAgentId: null };
+  return { assigneeId: null, assigneeAgentId: null };
+}
+
 export const STATUS_LABEL: Record<Status, string> = {
   TODO: "未着手",
   IN_PROGRESS: "進行中",

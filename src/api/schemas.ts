@@ -13,19 +13,19 @@ const dueDateField = z.preprocess(
   z.coerce.date().nullable().optional()
 );
 
-// カテゴリID: 数値文字列 → number、空文字 → null（カテゴリ未設定）。
-const categoryIdField = z.preprocess(
-  (v) => (v === "" ? null : v),
-  z.coerce.number().int().positive().nullable().optional()
-);
-
-// 担当者ID: 数値文字列 → number、空文字 → null（未割当）。categoryIdField と同型。
+// 担当者（ユーザー）ID: 数値文字列 → number、空文字 → null（未割当）。
 const assigneeIdField = z.preprocess(
   (v) => (v === "" ? null : v),
   z.coerce.number().int().positive().nullable().optional()
 );
 
-// 親タスクID: 数値文字列 → number、空文字 → null（トップレベル）。categoryIdField と同型。
+// 担当エージェントID: 数値文字列 → number、空文字 → null（未割当）。assigneeIdField と同型。
+const assigneeAgentIdField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z.coerce.number().int().positive().nullable().optional()
+);
+
+// 親タスクID: 数値文字列 → number、空文字 → null（トップレベル）。assigneeIdField と同型。
 const parentIdField = z.preprocess(
   (v) => (v === "" ? null : v),
   z.coerce.number().int().positive().nullable().optional()
@@ -68,8 +68,8 @@ export const taskCreateSchema = z.object({
   status: statusEnum.optional(),
   priority: priorityEnum.optional(),
   dueDate: dueDateField,
-  categoryId: categoryIdField,
   assigneeId: assigneeIdField,
+  assigneeAgentId: assigneeAgentIdField,
   parentId: parentIdField,
   tagIds: tagIdsField,
 });
@@ -77,15 +77,18 @@ export const taskCreateSchema = z.object({
 // PATCH 用: 送られてきた項目だけ更新する（全項目を任意にする）。
 export const taskUpdateSchema = taskCreateSchema.partial();
 
-// --- カテゴリ ---
+// --- AI エージェント ---
 
-export const categoryCreateSchema = z.object({
-  name: z.string().trim().min(1, "カテゴリ名を入力してください。").max(50),
+export const agentCreateSchema = z.object({
+  name: z.string().trim().min(1, "エージェント名を入力してください。").max(50),
   color: z
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
     .optional(),
 });
+
+// PATCH 用: 送られてきた項目だけ更新する。
+export const agentUpdateSchema = agentCreateSchema.partial();
 
 // --- タグ ---
 
@@ -116,6 +119,11 @@ const assignableRoleEnum = z.enum(["ADMIN", "MEMBER"]);
 
 export const workspaceCreateSchema = z.object({
   name: z.string().trim().min(1, "ワークスペース名を入力してください。").max(50),
+});
+
+// メイン画面のワークスペース並べ替え（表示順に並んだ workspaceId の配列）
+export const workspaceReorderSchema = z.object({
+  order: z.array(z.coerce.number().int().positive()).min(1),
 });
 
 export const memberAddSchema = z.object({

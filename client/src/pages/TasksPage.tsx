@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import type { TaskFilters } from "../types";
 import { useTasks } from "../queries/tasks";
-import { useCategories } from "../queries/categories";
+import { useAgents } from "../queries/agents";
 import { useTags } from "../queries/tags";
 import { useMe } from "../queries/auth";
 import { useMembers } from "../queries/workspaces";
@@ -12,8 +12,8 @@ import TaskItem from "../components/TaskItem";
 const EMPTY_FILTERS: TaskFilters = {
   status: "",
   priority: "",
-  category: "",
   assignee: "",
+  agent: "",
   tag: "",
   sort: "",
   q: "",
@@ -37,12 +37,12 @@ export default function TasksPage() {
   }, [search]);
 
   const tasksQ = useTasks(filters);
-  const catsQ = useCategories();
+  const agentsQ = useAgents();
   const tagsQ = useTags();
   const meQ = useMe();
   const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
 
-  const categories = catsQ.data?.categories ?? [];
+  const agents = agentsQ.data?.agents ?? [];
   const tags = tagsQ.data?.tags ?? [];
   const members = membersQ.data?.members ?? [];
   const tasks = tasksQ.data?.tasks ?? [];
@@ -72,7 +72,7 @@ export default function TasksPage() {
     <>
       <h1>タスク</h1>
 
-      <TaskForm categories={categories} members={members} tags={tags} />
+      <TaskForm members={members} agents={agents} tags={tags} />
 
       <div className="search-bar card">
         <span className="search-icon">🔍</span>
@@ -86,8 +86,8 @@ export default function TasksPage() {
       </div>
 
       <FilterBar
-        categories={categories}
         members={members}
+        agents={agents}
         tags={tags}
         filters={filters}
         onChange={onFilterChange}

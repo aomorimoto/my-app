@@ -4,7 +4,7 @@ import { doubleCsrfProtection, generateCsrfToken } from "../security/csrf";
 import { apiHealthRouter } from "./health";
 import { apiAuthRouter } from "./auth";
 import { apiTasksRouter } from "./tasks";
-import { apiCategoriesRouter } from "./categories";
+import { apiAgentsRouter } from "./agents";
 import { apiTagsRouter } from "./tags";
 import { apiWorkspacesRouter } from "./workspaces";
 import { apiDashboardRouter } from "./dashboard";
@@ -35,9 +35,9 @@ apiRouter.use((req, res, next) =>
   req.bearerAuth ? next() : doubleCsrfProtection(req, res, next)
 );
 
-// タスク・カテゴリ・ワークスペースはログイン必須（未ログインは JSON で 401）
+// タスク・エージェント・ワークスペースはログイン必須（未ログインは JSON で 401）
 apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);
-apiRouter.use("/categories", requireAuthApi, apiCategoriesRouter);
+apiRouter.use("/agents", requireAuthApi, apiAgentsRouter);
 apiRouter.use("/tags", requireAuthApi, apiTagsRouter);
 apiRouter.use("/workspaces", requireAuthApi, apiWorkspacesRouter);
 apiRouter.use("/dashboard", requireAuthApi, apiDashboardRouter);

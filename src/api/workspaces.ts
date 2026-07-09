@@ -1,11 +1,42 @@
 import { Router } from "express";
 import { prisma } from "../db";
-import { DEFAULT_CATEGORIES } from "../domain/defaults";
 import { requireMembership, requireRole } from "../domain/workspace";
-import { workspaceCreateSchema, memberAddSchema, memberRoleSchema } from "./schemas";
+import {
+  workspaceCreateSchema,
+  workspaceReorderSchema,
+  memberAddSchema,
+  memberRoleSchema,
+} from "./schemas";
 import { HttpError, parseId } from "./http";
 
 export const apiWorkspacesRouter = Router();
+
+// 自分の所属ワークスペースを表示順（position → id）で取得して API 表現に整える。
+// メイン画面の並べ替え結果（Membership.position）を反映する。
+async function listWorkspaces(userId: number) {
+  const memberships = await prisma.membership.findMany({
+    where: { userId },
+    orderBy: [{ position: "asc" }, { id: "asc" }],
+    select: {
+      role: true,
+      workspace: {
+        select: {
+          id: true,
+          name: true,
+          ownerId: true,
+          _count: { select: { members: true } },
+        },
+      },
+    },
+  });
+  return memberships.map((m) => ({
+    id: m.workspace.id,
+    name: m.workspace.name,
+    ownerId: m.workspace.ownerId,
+    role: m.role,
+    memberCount: m.workspace._count.members,
+  }));
+}
 
 // メンバー情報を API 表現に整える（user + role を平坦化）
 function toMember(m: {
@@ -22,46 +53,25 @@ function toMember(m: {
   };
 }
 
-// 自分が所属するワークスペース一覧
+// 自分が所属するワークスペース一覧（表示順）
 apiWorkspacesRouter.get("/", async (req, res) => {
-  const userId = req.userId!;
-  const memberships = await prisma.membership.findMany({
-    where: { userId },
-    orderBy: { id: "asc" },
-    select: {
-      role: true,
-      workspace: {
-        select: {
-          id: true,
-          name: true,
-          ownerId: true,
-          _count: { select: { members: true } },
-        },
-      },
-    },
-  });
-
-  const workspaces = memberships.map((m) => ({
-    id: m.workspace.id,
-    name: m.workspace.name,
-    ownerId: m.workspace.ownerId,
-    role: m.role,
-    memberCount: m.workspace._count.members,
-  }));
+  const workspaces = await listWorkspaces(req.userId!);
   res.json({ workspaces });
 });
 
-// ワークスペース作成（作成者が OWNER。signup と同じく既定カテゴリを付与）
+// ワークスペース作成（作成者が OWNER）。表示順は末尾に追加する。
 apiWorkspacesRouter.post("/", async (req, res) => {
   const userId = req.userId!;
   const { name } = workspaceCreateSchema.parse(req.body);
+
+  // 既存所属数を末尾 position として採用（メイン画面で新規WSを最後に並べる）
+  const position = await prisma.membership.count({ where: { userId } });
 
   const workspace = await prisma.workspace.create({
     data: {
       name,
       ownerId: userId,
-      members: { create: { userId, role: "OWNER" } },
-      categories: { create: DEFAULT_CATEGORIES },
+      members: { create: { userId, role: "OWNER", position } },
     },
     select: { id: true, name: true, ownerId: true },
   });
@@ -69,6 +79,25 @@ apiWorkspacesRouter.post("/", async (req, res) => {
   res.status(201).json({
     workspace: { ...workspace, role: "OWNER", memberCount: 1 },
   });
+});
+
+// メイン画面のワークスペース並べ替え（自分の Membership.position を配列順で更新）。
+apiWorkspacesRouter.post("/reorder", async (req, res) => {
+  const userId = req.userId!;
+  const { order } = workspaceReorderSchema.parse(req.body);
+
+  // 自分の所属分だけ position を配列の添字に更新（他人/非所属の id は 0 件マッチで無視）。
+  await prisma.$transaction(
+    order.map((workspaceId, index) =>
+      prisma.membership.updateMany({
+        where: { userId, workspaceId },
+        data: { position: index },
+      })
+    )
+  );
+
+  const workspaces = await listWorkspaces(userId);
+  res.json({ workspaces });
 });
 
 // アクティブなワークスペースを切り替える（所属を検証してセッションに保存）

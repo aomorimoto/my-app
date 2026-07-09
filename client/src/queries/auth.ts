@@ -38,7 +38,11 @@ export function useLogout() {
       // ログイン状態を消し、前ユーザーのキャッシュを破棄する
       qc.setQueryData(["me"], { user: null });
       qc.removeQueries({ queryKey: ["tasks"] });
-      qc.removeQueries({ queryKey: ["categories"] });
+      qc.removeQueries({ queryKey: ["agents"] });
+      qc.removeQueries({ queryKey: ["tags"] });
+      qc.removeQueries({ queryKey: ["dashboard"] });
+      qc.removeQueries({ queryKey: ["workspaces"] });
+      qc.removeQueries({ queryKey: ["members"] });
     },
   });
 }

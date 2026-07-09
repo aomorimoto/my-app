@@ -1,7 +1,6 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../db";
-import { DEFAULT_CATEGORIES } from "../domain/defaults";
 import { resolveWorkspace } from "../domain/workspace";
 import { signupSchema, loginSchema } from "./schemas";
 import { HttpError } from "./http";
@@ -63,7 +62,6 @@ apiAuthRouter.post("/signup", authLimiter, async (req, res) => {
         name: `${name || email}のワークスペース`,
         ownerId: user.id,
         members: { create: { userId: user.id, role: "OWNER" } },
-        categories: { create: DEFAULT_CATEGORIES },
       },
       select: { id: true },
     });
