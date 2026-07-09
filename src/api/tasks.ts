@@ -169,7 +169,7 @@ apiTasksRouter.get("/", async (req, res) => {
 // タスク作成
 apiTasksRouter.post("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const input = taskCreateSchema.parse(req.body);
   if (input.categoryId != null) await assertCategoryInWorkspace(workspaceId, input.categoryId);
   if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);

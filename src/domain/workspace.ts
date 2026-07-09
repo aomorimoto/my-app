@@ -13,7 +13,7 @@ export interface ActiveWorkspace {
 // session.workspaceId が本人の所属を指していればそれを採用。
 // 無効/未設定なら最初の所属を既定にしてセッションへ保存する（Phase 3b で切替 UI を追加）。
 export async function resolveWorkspace(req: Request): Promise<ActiveWorkspace> {
-  const userId = req.session.userId;
+  const userId = req.userId;
   // requireAuthApi 通過済みが前提だが、保険として
   if (!userId) throw new HttpError(401, "認証が必要です。", "UNAUTHENTICATED");
 
@@ -33,7 +33,9 @@ export async function resolveWorkspace(req: Request): Promise<ActiveWorkspace> {
     if (!membership) {
       throw new HttpError(403, "所属するワークスペースがありません。", "NO_WORKSPACE");
     }
-    req.session.workspaceId = membership.workspaceId;
+    // Bearer 認証時は session に書かない（Cookie を持たないので毎回この既定解決で十分。
+    // 無駄なセッション行 / Set-Cookie を生まないため）。
+    if (!req.bearerAuth) req.session.workspaceId = membership.workspaceId;
   }
 
   return { workspaceId: membership.workspaceId, role: membership.role };

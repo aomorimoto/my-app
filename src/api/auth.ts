@@ -17,7 +17,7 @@ function publicUser(user: { id: number; email: string; name: string | null }) {
 // 現在ログイン中のユーザーと、アクティブなワークスペース。
 // 未ログインでも 200 で { user: null } を返す（SPA が認証状態を素直に確認できるように）。
 apiAuthRouter.get("/me", async (req, res) => {
-  const userId = req.session.userId;
+  const userId = req.userId;
   if (!userId) return res.json({ user: null, activeWorkspace: null });
 
   const user = await prisma.user.findUnique({

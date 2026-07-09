@@ -33,7 +33,7 @@ const PRIORITY_RANK: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 };
 // ダッシュボード用サマリ。集計範囲はタスク一覧と揃えてトップレベル（親）タスクのみ。
 apiDashboardRouter.get("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
-  const userId = req.session.userId!;
+  const userId = req.userId!;
 
   const tasks = await prisma.task.findMany({
     where: { workspaceId, parentId: null },

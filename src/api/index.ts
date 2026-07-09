@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuthApi } from "../middleware";
+import { authenticate, requireAuthApi } from "../middleware";
 import { doubleCsrfProtection, generateCsrfToken } from "../security/csrf";
 import { apiHealthRouter } from "./health";
 import { apiAuthRouter } from "./auth";
@@ -16,6 +16,9 @@ export const apiRouter = Router();
 // ヘルスチェックは認証・CSRF 不要（死活監視用）
 apiRouter.use("/health", apiHealthRouter);
 
+// 認証情報の解決（session Cookie / Bearer トークン → req.userId）。CSRF より前に置く。
+apiRouter.use(authenticate);
+
 // CSRF トークン発行（認証不要・GET なので検証対象外）。
 // クライアントはこれで得たトークンを X-CSRF-Token ヘッダで送る（ダブルサブミット）。
 apiRouter.get("/csrf", (req, res) => {
@@ -27,7 +30,10 @@ apiRouter.use("/auth", apiAuthRouter);
 
 // ここから下（状態変更を伴うリソース系）は CSRF 保護対象。
 // doubleCsrfProtection は GET/HEAD/OPTIONS を素通りするので一覧・詳細取得には影響しない。
-apiRouter.use(doubleCsrfProtection);
+// ただし Bearer トークン認証済み（Cookie を使わない＝CSRF 対象外）は免除する。
+apiRouter.use((req, res, next) =>
+  req.bearerAuth ? next() : doubleCsrfProtection(req, res, next)
+);
 
 // タスク・カテゴリ・ワークスペースはログイン必須（未ログインは JSON で 401）
 apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);

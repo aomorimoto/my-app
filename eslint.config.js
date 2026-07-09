@@ -4,7 +4,7 @@ import tseslint from "typescript-eslint";
 // バックエンド（Node / TypeScript, ESM）用の ESLint flat config。
 // client/ は独自の設定を持つため対象外。生成物（generated）とビルド成果物（dist）は除外する。
 export default tseslint.config(
-  { ignores: ["generated/**", "client/**", "**/dist/**", "node_modules/**"] },
+  { ignores: ["generated/**", "client/**", "mcp/**", "**/dist/**", "node_modules/**"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

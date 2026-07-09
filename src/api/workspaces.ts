@@ -24,7 +24,7 @@ function toMember(m: {
 
 // 自分が所属するワークスペース一覧
 apiWorkspacesRouter.get("/", async (req, res) => {
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const memberships = await prisma.membership.findMany({
     where: { userId },
     orderBy: { id: "asc" },
@@ -53,7 +53,7 @@ apiWorkspacesRouter.get("/", async (req, res) => {
 
 // ワークスペース作成（作成者が OWNER。signup と同じく既定カテゴリを付与）
 apiWorkspacesRouter.post("/", async (req, res) => {
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const { name } = workspaceCreateSchema.parse(req.body);
 
   const workspace = await prisma.workspace.create({
@@ -73,7 +73,7 @@ apiWorkspacesRouter.post("/", async (req, res) => {
 
 // アクティブなワークスペースを切り替える（所属を検証してセッションに保存）
 apiWorkspacesRouter.post("/:id/activate", async (req, res) => {
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const id = parseId(req.params.id);
   const role = await requireMembership(userId, id);
 
@@ -87,7 +87,7 @@ apiWorkspacesRouter.post("/:id/activate", async (req, res) => {
 
 // メンバー一覧（メンバーなら誰でも閲覧可）
 apiWorkspacesRouter.get("/:id/members", async (req, res) => {
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const id = parseId(req.params.id);
   await requireMembership(userId, id);
 
@@ -105,7 +105,7 @@ apiWorkspacesRouter.get("/:id/members", async (req, res) => {
 
 // メンバー追加（メールで既存ユーザーを直接追加。OWNER / ADMIN のみ）
 apiWorkspacesRouter.post("/:id/members", async (req, res) => {
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const id = parseId(req.params.id);
   const role = await requireMembership(userId, id);
   requireRole(role, ["OWNER", "ADMIN"]);
@@ -133,7 +133,7 @@ apiWorkspacesRouter.post("/:id/members", async (req, res) => {
 
 // 役割変更（OWNER / ADMIN のみ。OWNER の役割は不変）
 apiWorkspacesRouter.patch("/:id/members/:userId", async (req, res) => {
-  const actingUserId = req.session.userId!;
+  const actingUserId = req.userId!;
   const id = parseId(req.params.id);
   const targetUserId = parseId(req.params.userId);
   const role = await requireMembership(actingUserId, id);
@@ -163,7 +163,7 @@ apiWorkspacesRouter.patch("/:id/members/:userId", async (req, res) => {
 
 // メンバー削除（OWNER / ADMIN のみ。OWNER は削除不可。担当タスクは未割当に戻す）
 apiWorkspacesRouter.delete("/:id/members/:userId", async (req, res) => {
-  const actingUserId = req.session.userId!;
+  const actingUserId = req.userId!;
   const id = parseId(req.params.id);
   const targetUserId = parseId(req.params.userId);
   const role = await requireMembership(actingUserId, id);

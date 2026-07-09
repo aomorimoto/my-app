@@ -1,6 +1,7 @@
 import supertest from "supertest";
 import { createApp } from "../src/app";
 import { prisma, pool } from "../src/db";
+import { generateToken } from "../src/domain/token";
 
 // テスト対象の Express アプリ（listen しない）。全テストで再利用する。
 // createApp() は setup.ts が DATABASE_URL / SESSION_SECRET を整えた後に呼ばれる。
@@ -10,7 +11,7 @@ export const app = createApp();
 // モデル名がそのままテーブル名（大文字始まり）なので二重引用符で囲む。session は @@map 済み。
 export async function resetDb() {
   await prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE "Comment","TaskTag","Task","Tag","Category","Membership","Workspace","User","session" RESTART IDENTITY CASCADE`
+    `TRUNCATE TABLE "Comment","TaskTag","Task","Tag","Category","Membership","Workspace","PersonalAccessToken","User","session" RESTART IDENTITY CASCADE`
   );
 }
 
@@ -47,4 +48,11 @@ export async function signupAgent(
   }
 
   return { agent, email, password, name, csrfToken: token, userId: res.body.user.id as number };
+}
+
+// 指定ユーザーの個人アクセストークンを発行し、平文を返す（Bearer 認証テスト用）。
+export async function createToken(userId: number, label = "test") {
+  const { raw, hash } = generateToken();
+  await prisma.personalAccessToken.create({ data: { tokenHash: hash, userId, label } });
+  return raw;
 }

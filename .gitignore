@@ -5,4 +5,5 @@ generated/prisma
 info/
 client/node_modules/
 client/dist/
+mcp/node_modules/
 cookie.txt

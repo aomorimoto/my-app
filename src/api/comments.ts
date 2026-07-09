@@ -39,7 +39,7 @@ apiCommentsRouter.get("/", async (req, res) => {
 // コメント投稿。メンバーなら誰でも可。
 apiCommentsRouter.post("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const taskId = parseId(req.params.taskId);
   await assertTaskInWorkspace(workspaceId, taskId);
   const { body } = commentCreateSchema.parse(req.body);
@@ -72,7 +72,7 @@ async function getEditableComment(
 // コメント編集（投稿者本人 or OWNER/ADMIN）
 apiCommentsRouter.patch("/:commentId", async (req, res) => {
   const { workspaceId, role } = await resolveWorkspace(req);
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const taskId = parseId(req.params.taskId);
   const commentId = parseId(req.params.commentId);
   await getEditableComment(workspaceId, taskId, commentId, userId, role);
@@ -89,7 +89,7 @@ apiCommentsRouter.patch("/:commentId", async (req, res) => {
 // コメント削除（投稿者本人 or OWNER/ADMIN）
 apiCommentsRouter.delete("/:commentId", async (req, res) => {
   const { workspaceId, role } = await resolveWorkspace(req);
-  const userId = req.session.userId!;
+  const userId = req.userId!;
   const taskId = parseId(req.params.taskId);
   const commentId = parseId(req.params.commentId);
   await getEditableComment(workspaceId, taskId, commentId, userId, role);
