@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import type { TaskFilters } from "../types";
-import { useTasks } from "../queries/tasks";
+import type { Task, TaskFilters } from "../types";
+import { useTasks, useReorderTasks } from "../queries/tasks";
 import { useAgents } from "../queries/agents";
 import { useTags } from "../queries/tags";
 import { useMe } from "../queries/auth";
 import { useMembers } from "../queries/workspaces";
+import { useDragList } from "../hooks/useDragList";
 import TaskForm from "../components/TaskForm";
 import FilterBar from "../components/FilterBar";
 import TaskItem from "../components/TaskItem";
@@ -19,6 +20,9 @@ const EMPTY_FILTERS: TaskFilters = {
   q: "",
   page: 1,
 };
+
+// D&D 同期用の安定した空配列（参照を固定して useDragList の再同期ループを防ぐ）。
+const EMPTY_TASKS: Task[] = [];
 
 export default function TasksPage() {
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_FILTERS);
@@ -42,10 +46,27 @@ export default function TasksPage() {
   const meQ = useMe();
   const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
 
+  const reorder = useReorderTasks();
+
   const agents = agentsQ.data?.agents ?? [];
   const tags = tagsQ.data?.tags ?? [];
   const members = membersQ.data?.members ?? [];
-  const tasks = tasksQ.data?.tasks ?? [];
+  const tasks = tasksQ.data?.tasks ?? EMPTY_TASKS;
+
+  // 手動並べ替え（D&D）は「絞り込み・検索・並び替えなし」かつ 1 ページに収まるときだけ有効。
+  // 条件付き・ページ分割の一覧で並べ替えると position が部分集合で書き換わり混乱するため。
+  const canReorder =
+    !filters.status &&
+    !filters.priority &&
+    !filters.assignee &&
+    !filters.agent &&
+    !filters.tag &&
+    !filters.sort &&
+    !(filters.q ?? "").trim() &&
+    (tasksQ.data?.totalPages ?? 1) <= 1;
+
+  const drag = useDragList(tasks, (ids) => reorder.mutate({ parentId: null, order: ids }));
+  const displayed = canReorder ? drag.items : tasks;
 
   const page = filters.page ?? 1;
   const totalPages = tasksQ.data?.totalPages ?? 1;
@@ -102,9 +123,26 @@ export default function TasksPage() {
         <p className="empty">表示するタスクがありません。条件を変えるか、上のフォームから追加しましょう。</p>
       ) : (
         <>
+          {canReorder && (
+            <p className="muted reorder-hint">⠿ ドラッグでタスクを並べ替えできます。</p>
+          )}
           <ul className="task-list">
-            {tasks.map((task) => (
-              <TaskItem key={task.id} task={task} />
+            {displayed.map((task, i) => (
+              <TaskItem
+                key={task.id}
+                task={task}
+                dnd={
+                  canReorder
+                    ? {
+                        onDragStart: drag.onDragStart(i),
+                        onDragOver: drag.onDragOver(i),
+                        onDrop: drag.onDrop(i),
+                        onDragEnd: drag.onDragEnd,
+                        isOver: drag.overIndex === i,
+                      }
+                    : undefined
+                }
+              />
             ))}
           </ul>
 

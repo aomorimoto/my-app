@@ -90,9 +90,10 @@ model Task {
   assignee        User?  @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
   assigneeAgentId Int? // 担当 AI エージェント（未割当は null）
   assigneeAgent   Agent? @relation("TaskAgentAssignee", fields: [assigneeAgentId], references: [id], onDelete: SetNull)
-  parentId    Int? // 親タスク（サブタスク時に設定）。2階層のみ許可。
+  parentId    Int? // 親タスク（サブタスク時に設定）。多階層のネストを許可（循環のみ禁止）。
   parent      Task?     @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks    Task[]    @relation("Subtasks")
+  position    Int       @default(0) // 兄弟内の表示順（同一 parent／同一WS内。D&D 並べ替え用）
   taskTags    TaskTag[]
   comments    Comment[]
   createdAt   DateTime  @default(now())

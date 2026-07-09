@@ -8,10 +8,14 @@ import {
 } from "../queries/workspaces";
 import { useHomeTasks } from "../queries/home";
 import { useOpenTask } from "../hooks/useOpenTask";
+import { useDragList } from "../hooks/useDragList";
 import { ROLE_LABEL } from "../labels";
 import DashboardPanel from "../components/DashboardPanel";
 import CalendarGrid from "../components/CalendarGrid";
 import type { Workspace } from "../types";
+
+// D&D 同期用の安定した空配列（参照固定で useDragList の再同期ループを防ぐ）。
+const EMPTY_WORKSPACES: Workspace[] = [];
 
 // メイン画面: 左は集約ビュー（ダッシュボード / カレンダーを切替。所属する全WSを横断）、
 // 右はワークスペース一覧（並べ替え可能）。
@@ -22,7 +26,7 @@ export default function HomePage() {
   const reorder = useReorderWorkspaces();
   const createWs = useCreateWorkspace();
 
-  const workspaces = wsQ.data?.workspaces ?? [];
+  const workspaces = wsQ.data?.workspaces ?? EMPTY_WORKSPACES;
 
   // 左ペインの表示ビュー（ダッシュボード / カレンダー）
   const [view, setView] = useState<"dashboard" | "calendar">("dashboard");
@@ -35,14 +39,8 @@ export default function HomePage() {
     activate.mutate(id, { onSuccess: () => navigate("/tasks") });
   };
 
-  // 並べ替え（↑↓）。現在の並びから id 配列を作り、入れ替えてサーバへ保存する。
-  const move = (index: number, dir: -1 | 1) => {
-    const target = index + dir;
-    if (target < 0 || target >= workspaces.length) return;
-    const ids = workspaces.map((w) => w.id);
-    [ids[index], ids[target]] = [ids[target], ids[index]];
-    reorder.mutate(ids);
-  };
+  // 並べ替えはドラッグ&ドロップ。新しい並び順の id 配列をサーバへ保存する。
+  const drag = useDragList(workspaces, (ids) => reorder.mutate(ids));
 
   const onCreateWs = (e: FormEvent) => {
     e.preventDefault();
@@ -84,7 +82,6 @@ export default function HomePage() {
               カレンダー
             </button>
           </div>
-          <span className="muted home-scope">すべてのワークスペースを横断</span>
         </div>
 
         {view === "dashboard" ? <DashboardPanel scope="home" /> : <HomeCalendar />}
@@ -95,39 +92,35 @@ export default function HomePage() {
         {wsQ.isLoading ? (
           <p className="muted">読み込み中…</p>
         ) : (
-          <ul className="ws-list">
-            {workspaces.map((w, i) => (
-              <li key={w.id} className="ws-card">
-                <div className="ws-reorder">
-                  <button
-                    type="button"
-                    className="ws-arrow"
-                    title="上へ"
-                    onClick={() => move(i, -1)}
-                    disabled={i === 0 || reorder.isPending}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    type="button"
-                    className="ws-arrow"
-                    title="下へ"
-                    onClick={() => move(i, 1)}
-                    disabled={i === workspaces.length - 1 || reorder.isPending}
-                  >
-                    ▼
-                  </button>
-                </div>
-                <button type="button" className="ws-open" onClick={() => openWs(w.id)}>
-                  <span className="ws-name">🗂 {w.name}</span>
-                  <span className="ws-meta">
-                    <span className="badge role">{ROLE_LABEL[w.role]}</span>
-                    <span className="muted">👥 {w.memberCount}</span>
+          <>
+            {workspaces.length > 1 && (
+              <p className="muted reorder-hint">⠿ ドラッグで並べ替えできます。</p>
+            )}
+            <ul className="ws-list">
+              {drag.items.map((w, i) => (
+                <li
+                  key={w.id}
+                  className={`ws-card ${drag.overIndex === i ? "drag-over" : ""}`}
+                  draggable
+                  onDragStart={drag.onDragStart(i)}
+                  onDragOver={drag.onDragOver(i)}
+                  onDrop={drag.onDrop(i)}
+                  onDragEnd={drag.onDragEnd}
+                >
+                  <span className="ws-drag" title="ドラッグして並べ替え" aria-hidden>
+                    ⠿
                   </span>
-                </button>
-              </li>
-            ))}
-          </ul>
+                  <button type="button" className="ws-open" onClick={() => openWs(w.id)}>
+                    <span className="ws-name">🗂 {w.name}</span>
+                    <span className="ws-meta">
+                      <span className="badge role">{ROLE_LABEL[w.role]}</span>
+                      <span className="muted">👥 {w.memberCount}</span>
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
 
         <form className="form card ws-create-form" onSubmit={onCreateWs}>

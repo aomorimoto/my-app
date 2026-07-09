@@ -6,6 +6,7 @@ import {
   updateTask,
   toggleTask,
   deleteTask,
+  reorderTasks,
   type TaskInput,
 } from "../api/tasks";
 import type { TaskFilters } from "../types";
@@ -58,6 +59,17 @@ export function useDeleteTask() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => deleteTask(id),
+    onSuccess: () => invalidateTaskViews(qc),
+  });
+}
+
+// 兄弟内の並べ替え（D&D）。並び順（position）は一覧・詳細・集約ビューに影響するため
+// 保存後にまとめて無効化して最新の順序を反映する。
+export function useReorderTasks() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ parentId, order }: { parentId: number | null; order: number[] }) =>
+      reorderTasks(parentId, order),
     onSuccess: () => invalidateTaskViews(qc),
   });
 }

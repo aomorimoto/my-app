@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db";
 import { resolveWorkspace } from "../domain/workspace";
-import { taskCreateSchema, taskUpdateSchema } from "./schemas";
+import { taskCreateSchema, taskUpdateSchema, taskReorderSchema } from "./schemas";
 import { HttpError, parseId } from "./http";
 import { apiCommentsRouter } from "./comments";
 
@@ -14,22 +14,56 @@ type Priority = (typeof PRIORITIES)[number];
 const isStatus = (v: unknown): v is Status => STATUSES.includes(v as Status);
 const isPriority = (v: unknown): v is Priority => PRIORITIES.includes(v as Priority);
 
-// タスクレスポンス共通の include（担当者[人間/AI]＋タグ＋サブタスク＋コメント件数）
+// サブタスクの兄弟内並び順。
+const SIBLING_ORDER = [{ position: "asc" as const }, { createdAt: "asc" as const }];
+
+// タスク一覧・詳細で返すサブタスクツリーの表示深さ（これより深い階層はクリックで開いて確認する）。
+const SUBTASK_DEPTH = 4;
+
+// サブタスク1ノードの select（表示に必要なフィールド＋担当者＋タグ＋件数）を作る。
+// depth > 0 のときは子（subtasks）も再帰的に含める。
+function subtaskNode(depth: number): any {
+  const select: any = {
+    id: true,
+    title: true,
+    description: true,
+    status: true,
+    priority: true,
+    dueDate: true,
+    parentId: true,
+    position: true,
+    assigneeId: true,
+    assigneeAgentId: true,
+    createdAt: true,
+    assignee: { select: { id: true, email: true, name: true } },
+    assigneeAgent: { select: { id: true, name: true, color: true } },
+    taskTags: { include: { tag: true } },
+    _count: { select: { comments: true, subtasks: true } },
+  };
+  if (depth > 0) {
+    select.subtasks = { select: subtaskNode(depth - 1), orderBy: SIBLING_ORDER };
+  }
+  return select;
+}
+
+// タスクレスポンス共通の include（担当者[人間/AI]＋タグ＋サブタスクツリー＋コメント件数）
 const taskInclude = {
   assignee: { select: { id: true, email: true, name: true } },
   assigneeAgent: { select: { id: true, name: true, color: true } },
   taskTags: { include: { tag: true } },
-  subtasks: {
-    select: { id: true, title: true, status: true, priority: true },
-    orderBy: { createdAt: "asc" },
-  },
-  _count: { select: { comments: true } },
-} as const;
+  subtasks: { select: subtaskNode(SUBTASK_DEPTH), orderBy: SIBLING_ORDER },
+  _count: { select: { comments: true, subtasks: true } },
+};
 
 // Prisma の taskTags（中間テーブル）をクライアント向けに tags: Tag[] へ平坦化する。
-function shapeTask<T extends { taskTags: { tag: unknown }[] }>(task: T) {
-  const { taskTags, ...rest } = task;
-  return { ...rest, tags: taskTags.map((tt) => tt.tag) };
+// サブタスクツリーも同様に再帰的に平坦化する。
+function shapeTask(task: any): any {
+  const { taskTags, subtasks, ...rest } = task;
+  return {
+    ...rest,
+    tags: (taskTags ?? []).map((tt: any) => tt.tag),
+    ...(subtasks ? { subtasks: subtasks.map(shapeTask) } : {}),
+  };
 }
 
 // 指定担当者（人間）が対象ワークスペースのメンバーか検証する。非メンバーなら 400。
@@ -75,10 +109,10 @@ async function assertTagsInWorkspace(workspaceId: number, tagIds: number[]) {
   }
 }
 
-// 親タスクの妥当性を検証する（2階層のみ許可）。
+// 親タスクの妥当性を検証する（多階層のネストを許可し、循環のみ禁止）。
 // - 同一ワークスペースに存在すること
 // - 自分自身を親にしないこと（selfId 指定時）
-// - 親自身がサブタスクでないこと（parentId が null であること）
+// - 自分の子孫を親にしないこと＝親の祖先チェーンに自分が現れないこと（循環防止）
 async function assertParentValid(workspaceId: number, parentId: number, selfId?: number) {
   if (selfId != null && parentId === selfId) {
     throw new HttpError(400, "タスク自身を親に設定できません。", "INVALID_PARENT");
@@ -90,22 +124,18 @@ async function assertParentValid(workspaceId: number, parentId: number, selfId?:
   if (!parent) {
     throw new HttpError(400, "指定された親タスクが見つかりません。", "INVALID_PARENT");
   }
-  if (parent.parentId != null) {
-    throw new HttpError(
-      400,
-      "サブタスクをさらに親にすることはできません（2階層まで）。",
-      "INVALID_PARENT"
-    );
-  }
-  // 既に子を持つタスクは他タスクの子にできない（2階層を維持）
+  // 循環防止: 既存タスクの付け替え時は、新しい親の祖先を辿って自分が現れたら拒否する。
   if (selfId != null) {
-    const childCount = await prisma.task.count({ where: { parentId: selfId } });
-    if (childCount > 0) {
-      throw new HttpError(
-        400,
-        "サブタスクを持つタスクは他タスクの子にできません。",
-        "INVALID_PARENT"
-      );
+    let cursor: number | null = parent.parentId;
+    while (cursor != null) {
+      if (cursor === selfId) {
+        throw new HttpError(400, "サブタスクを循環させることはできません。", "INVALID_PARENT");
+      }
+      const up: { parentId: number | null } | null = await prisma.task.findUnique({
+        where: { id: cursor },
+        select: { parentId: true },
+      });
+      cursor = up?.parentId ?? null;
     }
   }
 }
@@ -147,7 +177,8 @@ apiTasksRouter.get("/", async (req, res) => {
       orderBy = [{ priority: "asc" }, { createdAt: "desc" }];
       break;
     default:
-      orderBy = [{ createdAt: "desc" }];
+      // 既定は手動並び順（D&D で設定した position）。同順位は作成が新しい順。
+      orderBy = [{ position: "asc" }, { createdAt: "desc" }];
   }
 
   // ページネーション（opt-in）。`page` 未指定は全件返す（カレンダー等の既存呼び出し互換）。
@@ -188,25 +219,74 @@ apiTasksRouter.post("/", async (req, res) => {
   if (input.parentId != null) await assertParentValid(workspaceId, input.parentId);
   if (input.tagIds) await assertTagsInWorkspace(workspaceId, input.tagIds);
 
+  // サブタスク新規作成時は、明示指定の無いフィールド（未送信＝undefined）を親から継承する。
+  // 状態・優先度・期限・担当者・タグの初期値を親タスクに合わせる（design.md §11）。
+  let status = input.status ?? "TODO";
+  let priority = input.priority ?? "MEDIUM";
+  let dueDate = input.dueDate ?? null;
+  let assigneeId = input.assigneeId ?? null;
+  let assigneeAgentId = input.assigneeAgentId ?? null;
+  let tagIds = input.tagIds;
+
+  if (input.parentId != null) {
+    const parent = await prisma.task.findFirst({
+      where: { id: input.parentId, workspaceId },
+      include: { taskTags: { select: { tagId: true } } },
+    });
+    if (parent) {
+      if (input.status === undefined) status = parent.status;
+      if (input.priority === undefined) priority = parent.priority;
+      if (input.dueDate === undefined) dueDate = parent.dueDate;
+      // 担当者はユーザー/エージェントのどちらも未指定のときだけ親から引き継ぐ。
+      if (input.assigneeId === undefined && input.assigneeAgentId === undefined) {
+        assigneeId = parent.assigneeId;
+        assigneeAgentId = parent.assigneeAgentId;
+      }
+      if (input.tagIds === undefined) tagIds = parent.taskTags.map((tt) => tt.tagId);
+    }
+  }
+
+  // 兄弟（同一WS・同一 parent）の末尾に配置する。
+  const position = await prisma.task.count({
+    where: { workspaceId, parentId: input.parentId ?? null },
+  });
+
   const task = await prisma.task.create({
     data: {
       title: input.title,
       description: input.description ?? null,
-      status: input.status ?? "TODO",
-      priority: input.priority ?? "MEDIUM",
-      dueDate: input.dueDate ?? null,
-      assigneeId: input.assigneeId ?? null,
-      assigneeAgentId: input.assigneeAgentId ?? null,
+      status,
+      priority,
+      dueDate,
+      assigneeId,
+      assigneeAgentId,
       parentId: input.parentId ?? null,
+      position,
       workspaceId,
       creatorId: userId,
-      ...(input.tagIds && input.tagIds.length > 0
-        ? { taskTags: { create: input.tagIds.map((tagId) => ({ tagId })) } }
+      ...(tagIds && tagIds.length > 0
+        ? { taskTags: { create: tagIds.map((tagId) => ({ tagId })) } }
         : {}),
     },
     include: taskInclude,
   });
   res.status(201).json({ task: shapeTask(task) });
+});
+
+// 兄弟内の並べ替え（D&D）。parentId が同じタスク群の position を配列順に更新する。
+// parentId 省略 = トップレベル（null）。他WS・別 parent の id は 0 件マッチで無視される。
+apiTasksRouter.post("/reorder", async (req, res) => {
+  const { workspaceId } = await resolveWorkspace(req);
+  const { parentId, order } = taskReorderSchema.parse(req.body);
+  await prisma.$transaction(
+    order.map((id, index) =>
+      prisma.task.updateMany({
+        where: { id, workspaceId, parentId: parentId ?? null },
+        data: { position: index },
+      })
+    )
+  );
+  res.status(204).end();
 });
 
 // タスク単一取得

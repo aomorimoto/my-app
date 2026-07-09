@@ -52,7 +52,7 @@ export default function WorkspacesPage() {
 
   return (
     <>
-      <h1>メンバー</h1>
+      <h2 className="section-title">👤 メンバー</h2>
 
       {active && (
         <p className="muted">

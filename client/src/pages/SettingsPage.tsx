@@ -3,18 +3,18 @@ import WorkspacesPage from "./WorkspacesPage";
 import TagsPage from "./TagsPage";
 import AgentsPage from "./AgentsPage";
 
-// ワークスペース画面の設定タブ。メンバー / タグ / エージェントの管理を1画面に集約し、
-// 内部のセグメントで切り替える（各セクションは既存ページをそのまま再利用）。
-type Section = "members" | "tags" | "agents";
+// ワークスペース画面の設定タブ。ユーザー（メンバー＋AIエージェント）/ タグの管理を
+// 1画面に集約し、内部のセグメントで切り替える（各セクションは既存ページを再利用）。
+// AI エージェントは「担当者になれるユーザー」の一種として、ユーザータブに含める。
+type Section = "users" | "tags";
 
 const SECTIONS: { key: Section; label: string }[] = [
-  { key: "members", label: "メンバー" },
+  { key: "users", label: "ユーザー" },
   { key: "tags", label: "タグ" },
-  { key: "agents", label: "エージェント" },
 ];
 
 export default function SettingsPage() {
-  const [section, setSection] = useState<Section>("members");
+  const [section, setSection] = useState<Section>("users");
 
   return (
     <>
@@ -33,9 +33,14 @@ export default function SettingsPage() {
         ))}
       </div>
 
-      {section === "members" && <WorkspacesPage />}
+      {section === "users" && (
+        <>
+          {/* 人間メンバーと AI エージェントを1つの「ユーザー」タブにまとめて表示する */}
+          <WorkspacesPage />
+          <AgentsPage />
+        </>
+      )}
       {section === "tags" && <TagsPage />}
-      {section === "agents" && <AgentsPage />}
     </>
   );
 }

@@ -41,3 +41,7 @@ export const toggleTask = (id: number) =>
 
 export const deleteTask = (id: number) =>
   apiFetch<null>(`/api/tasks/${id}`, { method: "DELETE" });
+
+// 兄弟内の並べ替え（D&D）。parentId は null でトップレベル、数値でそのサブタスク群。
+export const reorderTasks = (parentId: number | null, order: number[]) =>
+  apiFetch<null>("/api/tasks/reorder", { method: "POST", body: { parentId, order } });

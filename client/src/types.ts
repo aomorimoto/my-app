@@ -65,12 +65,25 @@ export interface Comment {
   updatedAt: string;
 }
 
-// 一覧・詳細の include に含まれるサブタスク（浅い表現）
-export interface Subtask {
+// 一覧・詳細の include に含まれるサブタスクツリーのノード。
+// 親と同じ表示情報（説明・状態・優先度・期限・担当者・タグ）を持ち、子を再帰的に含む。
+export interface TaskNode {
   id: number;
   title: string;
+  description: string | null;
   status: Status;
   priority: Priority;
+  dueDate: string | null;
+  parentId: number | null;
+  position?: number;
+  assigneeId: number | null;
+  assignee?: User | null;
+  assigneeAgentId: number | null;
+  assigneeAgent?: Pick<Agent, "id" | "name" | "color"> | null;
+  tags?: Tag[]; // API が taskTags を平坦化して返す
+  subtasks?: TaskNode[]; // 子タスク（再帰）
+  _count?: { comments: number; subtasks?: number };
+  createdAt: string;
 }
 
 // JSON 経由なので日時は ISO 文字列で受け取る
@@ -83,6 +96,7 @@ export interface Task {
   dueDate: string | null;
   workspaceId: number;
   creatorId: number;
+  position?: number;
   // 担当者は「人間メンバー」または「AIエージェント」のどちらか一方
   assigneeId: number | null;
   assignee?: User | null;
@@ -92,8 +106,8 @@ export interface Task {
   // 集約ビュー（メイン画面のダッシュボード/カレンダー）でのみ付与。どのWSのタスクかを示す。
   workspace?: { id: number; name: string };
   tags?: Tag[]; // API が taskTags を平坦化して返す
-  subtasks?: Subtask[]; // 子タスク（浅い表現）
-  _count?: { comments: number };
+  subtasks?: TaskNode[]; // 子タスクツリー（再帰）
+  _count?: { comments: number; subtasks?: number };
   createdAt: string;
   updatedAt: string;
 }

@@ -77,6 +77,13 @@ export const taskCreateSchema = z.object({
 // PATCH 用: 送られてきた項目だけ更新する（全項目を任意にする）。
 export const taskUpdateSchema = taskCreateSchema.partial();
 
+// 兄弟内の並べ替え（同一 parent のタスク id を表示順に並べた配列）。
+// parentId 省略/空文字 = トップレベル（null）。
+export const taskReorderSchema = z.object({
+  parentId: parentIdField,
+  order: z.array(z.coerce.number().int().positive()).min(1),
+});
+
 // --- AI エージェント ---
 
 export const agentCreateSchema = z.object({
