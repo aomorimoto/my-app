@@ -5,12 +5,11 @@ import WorkspaceLayout from "./components/WorkspaceLayout";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import HomePage from "./pages/HomePage";
+import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import TasksPage from "./pages/TasksPage";
 import TaskDetailPage from "./pages/TaskDetailPage";
-import TagsPage from "./pages/TagsPage";
-import AgentsPage from "./pages/AgentsPage";
-import WorkspacesPage from "./pages/WorkspacesPage";
+import SettingsPage from "./pages/SettingsPage";
 
 export default function App() {
   return (
@@ -27,17 +26,16 @@ export default function App() {
           </ProtectedRoute>
         }
       >
-        {/* メイン画面: ダッシュボード + ワークスペース一覧 */}
+        {/* メイン画面: 集約ビュー（ダッシュボード/カレンダー） + ワークスペース一覧 */}
         <Route path="/" element={<HomePage />} />
 
-        {/* ワークスペース内ページ（サブナビ付き） */}
+        {/* ワークスペース内ページ（サブナビ付き: ダッシュボード/カレンダー/タスク/設定） */}
         <Route element={<WorkspaceLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/tasks" element={<TasksPage />} />
           <Route path="/tasks/:id" element={<TaskDetailPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/tags" element={<TagsPage />} />
-          <Route path="/agents" element={<AgentsPage />} />
-          <Route path="/workspaces" element={<WorkspacesPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

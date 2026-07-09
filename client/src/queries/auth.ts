@@ -41,6 +41,7 @@ export function useLogout() {
       qc.removeQueries({ queryKey: ["agents"] });
       qc.removeQueries({ queryKey: ["tags"] });
       qc.removeQueries({ queryKey: ["dashboard"] });
+      qc.removeQueries({ queryKey: ["home"] });
       qc.removeQueries({ queryKey: ["workspaces"] });
       qc.removeQueries({ queryKey: ["members"] });
     },

@@ -22,10 +22,12 @@ export function useTask(id: number) {
   });
 }
 
-// タスクの追加・変更はダッシュボードの集計にも影響するため両方を無効化する。
+// タスクの追加・変更はダッシュボード（WS単位）とメイン画面の集約ビュー（全WS横断）の
+// 集計にも影響するため、まとめて無効化する。
 function invalidateTaskViews(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["tasks"] });
   qc.invalidateQueries({ queryKey: ["dashboard"] });
+  qc.invalidateQueries({ queryKey: ["home"] });
 }
 
 export function useCreateTask() {

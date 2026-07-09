@@ -8,6 +8,7 @@ import { apiAgentsRouter } from "./agents";
 import { apiTagsRouter } from "./tags";
 import { apiWorkspacesRouter } from "./workspaces";
 import { apiDashboardRouter } from "./dashboard";
+import { apiHomeRouter } from "./home";
 import { apiErrorHandler } from "./http";
 
 // /api 配下の JSON API をまとめるルータ。
@@ -41,6 +42,8 @@ apiRouter.use("/agents", requireAuthApi, apiAgentsRouter);
 apiRouter.use("/tags", requireAuthApi, apiTagsRouter);
 apiRouter.use("/workspaces", requireAuthApi, apiWorkspacesRouter);
 apiRouter.use("/dashboard", requireAuthApi, apiDashboardRouter);
+// メイン画面（ホーム）用の横断ビュー（所属する全ワークスペースを統合）
+apiRouter.use("/home", requireAuthApi, apiHomeRouter);
 
 // 未定義の /api パスは JSON で 404
 apiRouter.use((_req, res) => {

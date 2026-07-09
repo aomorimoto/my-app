@@ -1,14 +1,14 @@
 import { NavLink } from "react-router-dom";
 import { useMe } from "../queries/auth";
 
-// ワークスペース内ページ（タスク/カレンダー/タグ/エージェント/メンバー）共通のサブナビ。
+// ワークスペース内ページ（ダッシュボード/カレンダー/タスク/設定）共通のサブナビ。
 // トップバーは最小構成のため、ワークスペース内の画面遷移はここで行う。
+// タグ/エージェント/メンバーの管理は「設定」タブに集約している。
 const TABS = [
-  { to: "/tasks", label: "タスク" },
+  { to: "/dashboard", label: "ダッシュボード" },
   { to: "/calendar", label: "カレンダー" },
-  { to: "/tags", label: "タグ" },
-  { to: "/agents", label: "エージェント" },
-  { to: "/workspaces", label: "メンバー" },
+  { to: "/tasks", label: "タスク" },
+  { to: "/settings", label: "設定" },
 ];
 
 export default function WorkspaceNav() {

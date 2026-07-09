@@ -1,37 +1,37 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMe } from "../queries/auth";
 import {
   useWorkspaces,
   useActivateWorkspace,
   useReorderWorkspaces,
   useCreateWorkspace,
 } from "../queries/workspaces";
+import { useHomeTasks } from "../queries/home";
+import { useOpenTask } from "../hooks/useOpenTask";
 import { ROLE_LABEL } from "../labels";
 import DashboardPanel from "../components/DashboardPanel";
+import CalendarGrid from "../components/CalendarGrid";
 import type { Workspace } from "../types";
 
-// メイン画面: 左にダッシュボード、右にワークスペース一覧（並べ替え可能）。
+// メイン画面: 左は集約ビュー（ダッシュボード / カレンダーを切替。所属する全WSを横断）、
+// 右はワークスペース一覧（並べ替え可能）。
 export default function HomePage() {
   const navigate = useNavigate();
-  const meQ = useMe();
   const wsQ = useWorkspaces();
   const activate = useActivateWorkspace();
   const reorder = useReorderWorkspaces();
   const createWs = useCreateWorkspace();
 
-  const activeId = meQ.data?.activeWorkspace?.id;
   const workspaces = wsQ.data?.workspaces ?? [];
+
+  // 左ペインの表示ビュー（ダッシュボード / カレンダー）
+  const [view, setView] = useState<"dashboard" | "calendar">("dashboard");
 
   const [wsName, setWsName] = useState("");
   const [wsError, setWsError] = useState<string | null>(null);
 
   // クリックでそのワークスペースを開く（アクティブ化 → タスク画面へ）。
   const openWs = (id: number) => {
-    if (id === activeId) {
-      navigate("/tasks");
-      return;
-    }
     activate.mutate(id, { onSuccess: () => navigate("/tasks") });
   };
 
@@ -63,13 +63,31 @@ export default function HomePage() {
   return (
     <div className="home">
       <section className="home-dash">
-        <h1>ダッシュボード</h1>
-        {meQ.data?.activeWorkspace && (
-          <p className="muted home-active-ws">
-            表示中: <strong>{meQ.data.activeWorkspace.name}</strong>
-          </p>
-        )}
-        <DashboardPanel />
+        <div className="home-toolbar">
+          <div className="seg" role="tablist" aria-label="表示ビュー">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "dashboard"}
+              className={`seg-btn ${view === "dashboard" ? "active" : ""}`}
+              onClick={() => setView("dashboard")}
+            >
+              ダッシュボード
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={view === "calendar"}
+              className={`seg-btn ${view === "calendar" ? "active" : ""}`}
+              onClick={() => setView("calendar")}
+            >
+              カレンダー
+            </button>
+          </div>
+          <span className="muted home-scope">すべてのワークスペースを横断</span>
+        </div>
+
+        {view === "dashboard" ? <DashboardPanel scope="home" /> : <HomeCalendar />}
       </section>
 
       <aside className="home-ws">
@@ -79,7 +97,7 @@ export default function HomePage() {
         ) : (
           <ul className="ws-list">
             {workspaces.map((w, i) => (
-              <li key={w.id} className={`ws-card ${w.id === activeId ? "active" : ""}`}>
+              <li key={w.id} className="ws-card">
                 <div className="ws-reorder">
                   <button
                     type="button"
@@ -105,7 +123,6 @@ export default function HomePage() {
                   <span className="ws-meta">
                     <span className="badge role">{ROLE_LABEL[w.role]}</span>
                     <span className="muted">👥 {w.memberCount}</span>
-                    {w.id === activeId && <span className="badge ws-active-badge">表示中</span>}
                   </span>
                 </button>
               </li>
@@ -137,4 +154,16 @@ export default function HomePage() {
       </aside>
     </div>
   );
+}
+
+// メイン画面の集約カレンダー（全ワークスペース横断）。チップは所属WSを併記し、
+// クリックで（必要ならWSを切り替えて）タスク詳細を開く。
+function HomeCalendar() {
+  const openTask = useOpenTask();
+  const { data, isLoading, isError } = useHomeTasks();
+  const tasks = data?.tasks ?? [];
+
+  if (isLoading) return <p className="muted">読み込み中…</p>;
+  if (isError) return <p className="error">タスクの取得に失敗しました。</p>;
+  return <CalendarGrid tasks={tasks} onOpenTask={openTask} showWorkspace />;
 }

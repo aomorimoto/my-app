@@ -89,6 +89,8 @@ export interface Task {
   assigneeAgentId: number | null;
   assigneeAgent?: Pick<Agent, "id" | "name" | "color"> | null;
   parentId: number | null; // 親タスク（サブタスク時に設定）
+  // 集約ビュー（メイン画面のダッシュボード/カレンダー）でのみ付与。どのWSのタスクかを示す。
+  workspace?: { id: number; name: string };
   tags?: Tag[]; // API が taskTags を平坦化して返す
   subtasks?: Subtask[]; // 子タスク（浅い表現）
   _count?: { comments: number };
