@@ -1030,8 +1030,65 @@ details.card summary {
   font-weight: 600;
   box-shadow: var(--shadow);
 }
-.settings-seg {
-  margin-bottom: 20px;
+/* ===== 設定画面: 左に項目一覧、右にセクション（クリックで該当箇所へスクロール） ===== */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 176px 1fr;
+  gap: 28px;
+  align-items: start;
+}
+.settings-nav {
+  position: sticky;
+  top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.settings-nav-item {
+  text-align: left;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.settings-nav-item:hover {
+  background: var(--card);
+  color: var(--text);
+}
+.settings-nav-item.active {
+  background: var(--card);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+.settings-content {
+  min-width: 0; /* グリッド内で広い要素があってもはみ出さない */
+}
+.settings-section {
+  scroll-margin-top: 16px; /* スクロール先に少し余白を残す */
+}
+.settings-section + .settings-section {
+  margin-top: 8px;
+}
+.settings-flash {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .settings-nav {
+    position: static;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
 }
 
 /* 所属ワークスペースを示すバッジ（集約ビューのタスク行） */

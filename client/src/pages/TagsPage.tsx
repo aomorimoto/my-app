@@ -57,7 +57,7 @@ export default function TagsPage() {
 
   return (
     <>
-      <h1>タグ</h1>
+      <h2 className="section-title">タグ</h2>
 
       <form className="form card category-form" onSubmit={onSubmit}>
         {error && <p className="error">{error}</p>}
