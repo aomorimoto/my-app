@@ -53,4 +53,38 @@ describe("CSRF 保護", () => {
       .send({ email: "csrf-exempt@example.com", password: "password123" });
     expect(login.status).toBe(200);
   });
+
+  it("ログアウト→再ログイン後も /api/csrf は新しいトークンを発行し、変更系が通る", async () => {
+    // 旧セッションの CSRF Cookie がブラウザに残ったまま再ログインする状況を再現する。
+    // 以前は /api/csrf が「別セッション由来の無効な Cookie」を見て 403 を投げ、
+    // 新しいトークンを取得できず、以後あらゆる変更系リクエストが復旧不能になっていた。
+    const email = "csrf-relogin@example.com";
+    const agent = await rawSignup(email);
+
+    // 変更系を一度行い、x-csrf-token Cookie を確立する（旧セッションに束縛される）。
+    const first = await agent.get("/api/csrf");
+    await agent
+      .post("/api/tasks")
+      .set("X-CSRF-Token", first.body.csrfToken as string)
+      .send({ title: "再ログイン前" });
+
+    // ログアウト → 再ログイン（サーバ側のセッションIDが変わる）。旧 Cookie は agent に残る。
+    expect((await agent.post("/api/auth/logout")).status).toBe(204);
+    expect(
+      (await agent.post("/api/auth/login").send({ email, password: "password123" })).status
+    ).toBe(200);
+
+    // 新セッションでもトークンを取得できること（旧 Cookie があっても 403 にならない）。
+    const csrf = await agent.get("/api/csrf");
+    expect(csrf.status).toBe(200);
+    const token = csrf.body.csrfToken as string;
+    expect(token).toBeTruthy();
+
+    // 取得したトークンで変更系が成功すること（ワークスペースのアクティブ化＝画面遷移に相当）。
+    const res = await agent
+      .post("/api/tasks")
+      .set("X-CSRF-Token", token)
+      .send({ title: "再ログイン後" });
+    expect(res.status).toBe(201);
+  });
 });

@@ -39,8 +39,15 @@ const csrf = doubleCsrf(options as Parameters<typeof doubleCsrf>[0]);
 export const doubleCsrfProtection = csrf.doubleCsrfProtection;
 
 // トークン発行（Cookie をセットしつつ平文トークンを返す）。v3/v4 の名称差を吸収。
-export const generateCsrfToken: (req: Request, res: unknown) => string =
-  (csrf as any).generateCsrfToken ?? (csrf as any).generateToken;
+// 第3/第4引数（overwrite, validateOnReuse）は csrf-csrf v3 のシグネチャ。既定は
+// overwrite=false・validateOnReuse=true で、別セッション由来の無効な Cookie が残っていると
+// 再利用検証で throw してしまう。/api/csrf 側で validateOnReuse=false を渡して回避する。
+export const generateCsrfToken: (
+  req: Request,
+  res: unknown,
+  overwrite?: boolean,
+  validateOnReuse?: boolean
+) => string = (csrf as any).generateCsrfToken ?? (csrf as any).generateToken;
 
 // 不正トークン時に投げられるエラー（http.ts で参照して 403 に整形）。
 export const invalidCsrfTokenError: Error = (csrf as any).invalidCsrfTokenError;

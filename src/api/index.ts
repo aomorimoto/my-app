@@ -23,8 +23,12 @@ apiRouter.use(authenticate);
 
 // CSRF トークン発行（認証不要・GET なので検証対象外）。
 // クライアントはこれで得たトークンを X-CSRF-Token ヘッダで送る（ダブルサブミット）。
+// overwrite=false・validateOnReuse=false: 有効な既存トークンは再利用し、別セッション由来で
+// 無効になった Cookie が残っている場合（ログアウト→再ログインでセッションが変わった等）は
+// throw せず新規発行する。これをしないと発行エンドポイント自体が 403 を返し、以後あらゆる
+// 変更系リクエストが復旧不能になる。
 apiRouter.get("/csrf", (req, res) => {
-  res.json({ csrfToken: generateCsrfToken(req, res) });
+  res.json({ csrfToken: generateCsrfToken(req, res, false, false) });
 });
 
 // 認証（/me はログイン状態を返す）。login/signup/logout は CSRF 免除（ブートストラップのため）。
