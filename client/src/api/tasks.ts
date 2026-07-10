@@ -12,6 +12,7 @@ export interface TaskInput {
   assigneeAgentId?: number | null;
   parentId?: number | null;
   tagIds?: number[];
+  recurrenceRule?: string | null;
 }
 
 export function fetchTasks(filters: TaskFilters) {

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isValidRecurrenceRule } from "../domain/recurrence";
 
 // 入力バリデーション用の zod スキーマ群。
 // 空文字は「未指定（null）」として扱い、日付や数値は文字列からの変換にも対応する。
@@ -33,6 +34,17 @@ const parentIdField = z.preprocess(
 
 // タグID配列: 数値文字列も許容し number[] に変換。未指定はそのまま（PATCH で「変更なし」と区別）。
 const tagIdsField = z.array(z.coerce.number().int().positive()).optional();
+
+// 繰り返しルール（RRULE 風文字列）。空文字 → null（繰り返しなし）。形式は recurrence.ts で検証。
+const recurrenceRuleField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z
+    .string()
+    .trim()
+    .refine(isValidRecurrenceRule, "繰り返しルールの形式が正しくありません。")
+    .nullable()
+    .optional()
+);
 
 // メールアドレス（signup/login と同じ前処理）
 const emailField = z
@@ -72,6 +84,7 @@ export const taskCreateSchema = z.object({
   assigneeAgentId: assigneeAgentIdField,
   parentId: parentIdField,
   tagIds: tagIdsField,
+  recurrenceRule: recurrenceRuleField,
 });
 
 // PATCH 用: 送られてきた項目だけ更新する（全項目を任意にする）。

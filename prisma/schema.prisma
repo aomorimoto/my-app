@@ -99,6 +99,10 @@ model Task {
   parent      Task?     @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
   subtasks    Task[]    @relation("Subtasks")
   position    Int       @default(0) // 兄弟内の表示順（同一 parent／同一WS内。D&D 並べ替え用）
+  // 繰り返し設定（RRULE 風文字列。null=繰り返しなし）。完了トグル時に次回の1件を生成する。
+  recurrenceRule     String?
+  // 生成元タスクの id（履歴用の soft ポインタ。FK は張らない）。
+  recurrenceParentId Int?
   taskTags    TaskTag[]
   comments    Comment[]
   createdAt   DateTime  @default(now())

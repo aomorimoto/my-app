@@ -4,6 +4,7 @@ import { resolveWorkspace } from "../domain/workspace";
 import { taskCreateSchema, taskUpdateSchema, taskReorderSchema } from "./schemas";
 import { HttpError, parseId } from "./http";
 import { apiCommentsRouter } from "./comments";
+import { nextOccurrence } from "../domain/recurrence";
 
 export const apiTasksRouter = Router();
 
@@ -32,6 +33,7 @@ function subtaskNode(depth: number): any {
     dueDate: true,
     parentId: true,
     position: true,
+    recurrenceRule: true,
     assigneeId: true,
     assigneeAgentId: true,
     createdAt: true,
@@ -285,6 +287,8 @@ apiTasksRouter.post("/", async (req, res) => {
       assigneeAgentId,
       parentId: input.parentId ?? null,
       position,
+      // 繰り返しは親からは継承しない（サブタスクは繰り返しインスタンスではない）。
+      recurrenceRule: input.recurrenceRule ?? null,
       workspaceId,
       creatorId: userId,
       ...(tagIds && tagIds.length > 0
@@ -349,6 +353,7 @@ apiTasksRouter.patch("/:id", async (req, res) => {
   if (input.status !== undefined) data.status = input.status;
   if (input.priority !== undefined) data.priority = input.priority;
   if (input.dueDate !== undefined) data.dueDate = input.dueDate;
+  if (input.recurrenceRule !== undefined) data.recurrenceRule = input.recurrenceRule;
   // 担当者はユーザー/エージェントの相互排他。一方を割り当てたら他方を必ず外す。
   if (input.assigneeId !== undefined) {
     data.assigneeId = input.assigneeId;
@@ -380,7 +385,8 @@ apiTasksRouter.delete("/:id", async (req, res) => {
   res.status(204).end();
 });
 
-// 完了 / 未完了の切替
+// 完了 / 未完了の切替。
+// 繰り返しタスクを「完了」にした瞬間は、そのタスクは完了のまま残し、次回分を1件生成する。
 apiTasksRouter.post("/:id/toggle", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
   const id = parseId(req.params.id);
@@ -388,13 +394,70 @@ apiTasksRouter.post("/:id/toggle", async (req, res) => {
   const existing = await prisma.task.findFirst({ where: { id, workspaceId } });
   if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
 
+  const completing = existing.status !== "DONE"; // 未完了 → 完了 への遷移か
   const task = await prisma.task.update({
     where: { id },
-    data: { status: existing.status === "DONE" ? "TODO" : "DONE" },
+    data: { status: completing ? "DONE" : "TODO" },
     include: taskInclude,
   });
+
+  // 完了時のみ、繰り返し設定と期限がそろっていれば次回分を生成する。
+  if (completing && existing.recurrenceRule && existing.dueDate) {
+    const nextDue = nextOccurrence(existing.dueDate, existing.recurrenceRule);
+    if (nextDue) {
+      await regenerateRecurringTask(workspaceId, existing, nextDue);
+    }
+  }
+
   res.json({ task: shapeTask(task) });
 });
+
+// 完了した繰り返しタスクの複製を、次回の期限で新規作成する（TODO 状態）。
+// タイトル/説明/優先度/担当者/タグ/繰り返しルールを引き継ぎ、生成元を recurrenceParentId に記録する。
+// サブタスクは複製しない（設計 §繰り返し）。
+async function regenerateRecurringTask(
+  workspaceId: number,
+  source: {
+    id: number;
+    title: string;
+    description: string | null;
+    priority: string;
+    assigneeId: number | null;
+    assigneeAgentId: number | null;
+    parentId: number | null;
+    creatorId: number;
+    recurrenceRule: string | null;
+  },
+  nextDue: Date
+) {
+  const tags = await prisma.taskTag.findMany({
+    where: { taskId: source.id },
+    select: { tagId: true },
+  });
+  const position = await prisma.task.count({
+    where: { workspaceId, parentId: source.parentId ?? null },
+  });
+  await prisma.task.create({
+    data: {
+      title: source.title,
+      description: source.description,
+      status: "TODO",
+      priority: source.priority as any,
+      dueDate: nextDue,
+      assigneeId: source.assigneeId,
+      assigneeAgentId: source.assigneeAgentId,
+      parentId: source.parentId ?? null,
+      position,
+      recurrenceRule: source.recurrenceRule,
+      recurrenceParentId: source.id,
+      workspaceId,
+      creatorId: source.creatorId,
+      ...(tags.length > 0
+        ? { taskTags: { create: tags.map((t) => ({ tagId: t.tagId })) } }
+        : {}),
+    },
+  });
+}
 
 // コメントはタスク配下にネスト（/api/tasks/:taskId/comments）
 apiTasksRouter.use("/:taskId/comments", apiCommentsRouter);

@@ -97,6 +97,7 @@ export interface TaskNode {
   dueDate: string | null;
   parentId: number | null;
   position?: number;
+  recurrenceRule?: string | null; // 繰り返しルール（RRULE 風。null=なし）
   assigneeId: number | null;
   assignee?: User | null;
   assigneeAgentId: number | null;
@@ -124,6 +125,7 @@ export interface Task {
   assigneeAgentId: number | null;
   assigneeAgent?: Pick<Agent, "id" | "name" | "color" | "iconImage"> | null;
   parentId: number | null; // 親タスク（サブタスク時に設定）
+  recurrenceRule?: string | null; // 繰り返しルール（RRULE 風。null=なし）
   // 集約ビュー（メイン画面のダッシュボード/カレンダー）でのみ付与。どのWSのタスクかを示す。
   workspace?: { id: number; name: string; iconColor?: string | null; iconImage?: string | null };
   tags?: Tag[]; // API が taskTags を平坦化して返す

@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import type { DragEvent } from "react";
 import type { TaskNode } from "../types";
 import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel, statusClass } from "../labels";
+import { recurrenceLabel } from "../lib/recurrence";
 import { useToggleTask } from "../queries/tasks";
 import UserAvatar from "./UserAvatar";
 import AgentIcon from "./AgentIcon";
@@ -116,6 +117,11 @@ export default function TaskItem({
               </span>
             )}
             {commentCount > 0 && <span className="badge comments">💬 {commentCount}</span>}
+            {task.recurrenceRule && (
+              <span className="badge recurrence" title={task.recurrenceRule}>
+                🔁 {recurrenceLabel(task.recurrenceRule)}
+              </span>
+            )}
             {task.dueDate && (
               <span className={`badge due ${overdue ? "overdue" : ""}`}>
                 期限: {formatDate(task.dueDate)}

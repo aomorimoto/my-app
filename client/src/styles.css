@@ -565,6 +565,56 @@ details.card summary {
   background: #f1f5f9;
   color: var(--muted);
 }
+.badge.recurrence {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+/* 繰り返し設定（フォーム内） */
+.recurrence-field {
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+.recurrence-interval .interval-inline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.recurrence-interval input[type="number"] {
+  width: 64px;
+}
+.recurrence-weekdays {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.weekday-toggles {
+  display: flex;
+  gap: 4px;
+}
+.weekday-toggle {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border, #cbd5e1);
+  border-radius: 6px;
+  background: var(--card, #fff);
+  color: var(--text, inherit);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+.weekday-toggle.on {
+  background: #0369a1;
+  border-color: #0369a1;
+  color: #fff;
+}
+.recurrence-hint {
+  flex: 1 1 100%;
+  margin: 0;
+  font-size: 0.85rem;
+}
 
 /* タグ選択チップ（フォーム内） */
 .tags-field {

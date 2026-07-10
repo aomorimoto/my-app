@@ -23,9 +23,11 @@ import {
   formatDate,
   statusClass,
 } from "../labels";
+import { recurrenceLabel } from "../lib/recurrence";
 import type { TaskNode } from "../types";
 import TagSelector from "../components/TagSelector";
 import TaskForm from "../components/TaskForm";
+import RecurrenceField from "../components/RecurrenceField";
 import CommentThread from "../components/CommentThread";
 import UserAvatar from "../components/UserAvatar";
 import AgentIcon from "../components/AgentIcon";
@@ -41,6 +43,7 @@ interface FormState {
   dueDate: string;
   // 担当者は人間/AI を1セレクトで扱う（"" | "u:<id>" | "a:<id>"）
   assignee: string;
+  recurrenceRule: string; // "" = 繰り返しなし
 }
 
 const INITIAL: FormState = {
@@ -50,6 +53,7 @@ const INITIAL: FormState = {
   priority: "MEDIUM",
   dueDate: "",
   assignee: "",
+  recurrenceRule: "",
 };
 
 export default function TaskDetailPage() {
@@ -85,6 +89,7 @@ export default function TaskDetailPage() {
         priority: task.priority,
         dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
         assignee: assigneeValue(task),
+        recurrenceRule: task.recurrenceRule ?? "",
       });
       setTagIds((task.tags ?? []).map((t) => t.id));
     }
@@ -121,6 +126,7 @@ export default function TaskDetailPage() {
         dueDate: form.dueDate || null,
         ...parseAssignee(form.assignee),
         tagIds,
+        recurrenceRule: form.recurrenceRule || null,
       },
       {
         onSuccess: () => navigate(backTo),
@@ -214,6 +220,11 @@ export default function TaskDetailPage() {
           <span className="field-label">タグ</span>
           <TagSelector tags={tags} selected={tagIds} onChange={setTagIds} />
         </div>
+        <RecurrenceField
+          value={form.recurrenceRule}
+          onChange={(rule) => set({ recurrenceRule: rule })}
+          hasDueDate={!!form.dueDate}
+        />
         <div className="actions">
           <button type="submit" className="btn-primary" disabled={update.isPending}>
             保存
@@ -297,6 +308,11 @@ export default function TaskDetailPage() {
                       ))}
                       {childCount > 0 && (
                         <span className="badge subtasks">サブタスク {childCount}</span>
+                      )}
+                      {s.recurrenceRule && (
+                        <span className="badge recurrence" title={s.recurrenceRule}>
+                          🔁 {recurrenceLabel(s.recurrenceRule)}
+                        </span>
                       )}
                       {s.dueDate && (
                         <span className={`badge due ${overdue ? "overdue" : ""}`}>

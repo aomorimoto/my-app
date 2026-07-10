@@ -65,6 +65,13 @@ const taskFields = {
     .optional(),
   parentId: z.number().int().positive().describe("親タスクID（サブタスク化）").nullable().optional(),
   tagIds: z.array(z.number().int().positive()).optional(),
+  recurrenceRule: z
+    .string()
+    .describe(
+      "繰り返しルール（RRULE 風。FREQ=DAILY|WEEKLY|MONTHLY|YEARLY、任意で INTERVAL=n・BYDAY=MO,WE 等。例 'FREQ=WEEKLY;INTERVAL=1;BYDAY=MO'）。完了トグル時に次回分を自動生成する。繰り返しなしにするには null。"
+    )
+    .nullable()
+    .optional(),
 };
 
 // taskapp の全ツールを MCP サーバに登録する。
@@ -106,6 +113,18 @@ export function registerTaskappTools(server: McpServer) {
     },
     async ({ workspaceId, ...query }, extra) =>
       ok(await api("GET", `/api/tasks${toQuery(query)}`, tokenOf(extra), { workspaceId }))
+  );
+
+  server.registerTool(
+    "list_all_tasks",
+    {
+      title: "全ワークスペース横断タスク一覧",
+      description:
+        "接続アカウントが所属する『すべてのワークスペース』のトップレベルタスクを横断して一覧する。各タスクに所属先 workspace{id,name} が付く。特定のワークスペースに限定せず全体を俯瞰したいとき（例: 期限が近いものを全WSから集める）に使う。個別WSの絞り込みは list_tasks を使う。",
+      inputSchema: {},
+      annotations: { readOnlyHint: true },
+    },
+    async (_args, extra) => ok(await api("GET", "/api/home/tasks", tokenOf(extra)))
   );
 
   server.registerTool(
@@ -360,6 +379,88 @@ export function registerTaskappTools(server: McpServer) {
     async ({ workspaceId, userId }, extra) => {
       await api("DELETE", `/api/workspaces/${workspaceId}/members/${userId}`, tokenOf(extra));
       return ok({ removed: userId, workspaceId });
+    }
+  );
+
+  // --- コメント（タスク配下） ---
+
+  server.registerTool(
+    "list_comments",
+    {
+      title: "コメント一覧",
+      description:
+        "指定タスクのコメントを古い順に取得する（投稿者情報付き）。taskId は list_tasks / get_task で調べる。タスクが既定以外のワークスペースにある場合は workspaceId も指定する。",
+      inputSchema: {
+        taskId: z.number().int().positive().describe("対象タスクID"),
+        workspaceId: workspaceIdField,
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async ({ taskId, workspaceId }, extra) =>
+      ok(await api("GET", `/api/tasks/${taskId}/comments`, tokenOf(extra), { workspaceId }))
+  );
+
+  server.registerTool(
+    "add_comment",
+    {
+      title: "コメント投稿",
+      description:
+        "指定タスクにコメントを投稿する（メンバーなら誰でも可）。投稿者は接続アカウント。既定以外のワークスペースのタスクは workspaceId を指定する。",
+      inputSchema: {
+        taskId: z.number().int().positive().describe("対象タスクID"),
+        body: z.string().min(1).max(2000).describe("コメント本文"),
+        workspaceId: workspaceIdField,
+      },
+    },
+    async ({ taskId, body, workspaceId }, extra) =>
+      ok(
+        await api("POST", `/api/tasks/${taskId}/comments`, tokenOf(extra), {
+          body: { body },
+          workspaceId,
+        })
+      )
+  );
+
+  server.registerTool(
+    "update_comment",
+    {
+      title: "コメント編集",
+      description:
+        "コメント本文を編集する（投稿者本人 または OWNER/ADMIN のみ）。commentId は list_comments で調べる。既定以外のワークスペースのタスクは workspaceId を指定する。",
+      inputSchema: {
+        taskId: z.number().int().positive().describe("対象タスクID"),
+        commentId: z.number().int().positive().describe("対象コメントID"),
+        body: z.string().min(1).max(2000).describe("新しいコメント本文"),
+        workspaceId: workspaceIdField,
+      },
+    },
+    async ({ taskId, commentId, body, workspaceId }, extra) =>
+      ok(
+        await api("PATCH", `/api/tasks/${taskId}/comments/${commentId}`, tokenOf(extra), {
+          body: { body },
+          workspaceId,
+        })
+      )
+  );
+
+  server.registerTool(
+    "delete_comment",
+    {
+      title: "コメント削除",
+      description:
+        "【破壊的】コメントを削除する（投稿者本人 または OWNER/ADMIN のみ）。取り消し不可。commentId は list_comments で調べる。既定以外のワークスペースのタスクは workspaceId を指定する。",
+      inputSchema: {
+        taskId: z.number().int().positive().describe("対象タスクID"),
+        commentId: z.number().int().positive().describe("対象コメントID"),
+        workspaceId: workspaceIdField,
+      },
+      annotations: { destructiveHint: true },
+    },
+    async ({ taskId, commentId, workspaceId }, extra) => {
+      await api("DELETE", `/api/tasks/${taskId}/comments/${commentId}`, tokenOf(extra), {
+        workspaceId,
+      });
+      return ok({ deleted: commentId });
     }
   );
 }
