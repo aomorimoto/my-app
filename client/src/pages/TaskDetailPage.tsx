@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   useTask,
   useUpdateTask,
-  useCreateTask,
   useToggleTask,
   useDeleteTask,
   useReorderTasks,
@@ -26,6 +25,7 @@ import {
 } from "../labels";
 import type { TaskNode } from "../types";
 import TagSelector from "../components/TagSelector";
+import TaskForm from "../components/TaskForm";
 import CommentThread from "../components/CommentThread";
 
 // D&D 同期用の安定した空配列。
@@ -63,7 +63,6 @@ export default function TaskDetailPage() {
   const update = useUpdateTask(taskId);
 
   // サブタスク操作（親と同じ tasks クエリを共有）
-  const createSubtask = useCreateTask();
   const toggleSubtask = useToggleTask();
   const deleteSubtask = useDeleteTask();
   const del = useDeleteTask(); // このタスク自身の削除
@@ -72,10 +71,6 @@ export default function TaskDetailPage() {
   const [form, setForm] = useState<FormState>(INITIAL);
   const [tagIds, setTagIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [subtaskTitle, setSubtaskTitle] = useState("");
-  // 新規サブタスクの状態・優先度。既定は親タスクと同じ（下の effect で初期化）。
-  const [subStatus, setSubStatus] = useState<string>("TODO");
-  const [subPriority, setSubPriority] = useState<string>("MEDIUM");
 
   // 取得したタスクをフォームに反映
   useEffect(() => {
@@ -90,9 +85,6 @@ export default function TaskDetailPage() {
         assignee: assigneeValue(task),
       });
       setTagIds((task.tags ?? []).map((t) => t.id));
-      // サブタスク作成フォームの既定値も、親タスクの現在値に合わせる。
-      setSubStatus(task.status);
-      setSubPriority(task.priority);
     }
   }, [taskQ.data]);
 
@@ -140,18 +132,6 @@ export default function TaskDetailPage() {
     if (window.confirm("このタスクを削除しますか？（サブタスクも一緒に削除されます）")) {
       del.mutate(taskId, { onSuccess: () => navigate(backTo) });
     }
-  };
-
-  const onAddSubtask = (e: FormEvent) => {
-    e.preventDefault();
-    const title = subtaskTitle.trim();
-    if (!title) return;
-    // 状態・優先度はフォームの値を明示送信（既定は親と同じ）。
-    // 期限/担当者/タグは未送信なので、これまで通りサーバ側で親から継承される。
-    createSubtask.mutate(
-      { title, parentId: taskId, status: subStatus, priority: subPriority },
-      { onSuccess: () => setSubtaskTitle("") }
-    );
   };
 
   const onDeleteSubtask = (subId: number) => {
@@ -255,9 +235,6 @@ export default function TaskDetailPage() {
         <h2 className="section-title">
           サブタスク（{subtasks.filter((s) => s.status === "DONE").length}/{subtasks.length}）
         </h2>
-        <p className="muted">
-          期限・担当者・タグは親から引き継ぎます（状態・優先度は下で指定でき、既定は親と同じ）。行をクリックすると詳細を編集できます。
-        </p>
         {subtasks.length === 0 ? (
           <p className="muted">サブタスクはありません。</p>
         ) : (
@@ -339,37 +316,21 @@ export default function TaskDetailPage() {
             })}
           </ul>
         )}
-        <form className="form subtask-form" onSubmit={onAddSubtask}>
-          <input
-            type="text"
-            value={subtaskTitle}
-            onChange={(e) => setSubtaskTitle(e.target.value)}
-            placeholder="サブタスクを追加…"
-          />
-          <label className="subtask-field">
-            状態
-            <select value={subStatus} onChange={(e) => setSubStatus(e.target.value)}>
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>
-                  {STATUS_LABEL[s]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="subtask-field">
-            優先度
-            <select value={subPriority} onChange={(e) => setSubPriority(e.target.value)}>
-              {PRIORITIES.map((p) => (
-                <option key={p} value={p}>
-                  {PRIORITY_LABEL[p]}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button type="submit" className="btn-small" disabled={createSubtask.isPending}>
-            追加
-          </button>
-        </form>
+        <h3 className="subtask-add-title">サブタスクを追加</h3>
+        <TaskForm
+          embedded
+          parentId={taskId}
+          members={members}
+          agents={agents}
+          tags={tags}
+          seed={{
+            status: task.status,
+            priority: task.priority,
+            dueDate: task.dueDate ? task.dueDate.slice(0, 10) : "",
+            assignee: assigneeValue(task),
+            tagIds: (task.tags ?? []).map((t) => t.id),
+          }}
+        />
       </section>
 
       {/* コメント */}

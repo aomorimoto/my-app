@@ -108,7 +108,7 @@ export default function AccountPage() {
       {error && <p className="error">{error}</p>}
 
       {/* プロフィール */}
-      <form className="form card" onSubmit={onSaveProfile}>
+      <form className="form card stack-form" onSubmit={onSaveProfile}>
         <h2 className="section-title">プロフィール</h2>
         <label>
           名前

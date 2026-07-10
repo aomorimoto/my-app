@@ -430,6 +430,26 @@ details.card summary {
   align-items: center;
 }
 
+/* ボタン列（設定画面などの縦積みフォーム/セクション内で汎用的に使う） */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 縦積みの設定フォーム（プロフィール等）。各フィールド／ボタン列の間に余白を確保する。 */
+.stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+/* 見出し・アバター編集ブロックは自前の下マージンを持つため、縦積み内では gap に一本化する。 */
+.stack-form .section-title,
+.stack-form .avatar-edit {
+  margin-bottom: 0;
+}
+
 /* カテゴリ一覧 */
 .category-list {
   list-style: none;
@@ -767,25 +787,9 @@ details.card summary {
 .delete-task {
   margin-left: auto;
 }
-.subtask-form {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  align-items: flex-end;
-}
-.subtask-form > input {
-  flex: 1 1 180px;
-}
-.subtask-field {
-  flex: 0 0 auto;
-}
-.subtask-field select {
-  font: inherit;
-  padding: 8px 10px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--text);
+.subtask-add-title {
+  font-size: 0.95rem;
+  margin: 20px 0 12px;
 }
 
 /* コメント */

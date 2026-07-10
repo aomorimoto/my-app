@@ -81,7 +81,7 @@ export default function WorkspaceGeneralPage() {
           </div>
         </div>
       ) : (
-        <form className="form card" onSubmit={onSave}>
+        <form className="form card stack-form" onSubmit={onSave}>
           <label>
             名前
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} required />
