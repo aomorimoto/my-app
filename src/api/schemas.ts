@@ -158,6 +158,11 @@ export const workspaceReorderSchema = z.object({
   order: z.array(z.coerce.number().int().positive()).min(1),
 });
 
+// ワークスペース削除の確認。誤削除防止のため、対象のワークスペース名の再入力を必須にする。
+export const workspaceDeleteSchema = z.object({
+  name: z.string().trim().min(1, "確認のためワークスペース名を入力してください。"),
+});
+
 export const memberAddSchema = z.object({
   email: emailField,
   role: assignableRoleEnum.optional(), // 既定は MEMBER

@@ -17,6 +17,10 @@ export interface UpdateWorkspaceInput {
 export const updateWorkspace = (id: number, body: UpdateWorkspaceInput) =>
   apiFetch<{ workspace: Workspace }>(`/api/workspaces/${id}`, { method: "PATCH", body });
 
+// ワークスペース削除（OWNER のみ）。誤削除防止のため確認用の名前を送る。
+export const deleteWorkspace = (id: number, name: string) =>
+  apiFetch<null>(`/api/workspaces/${id}`, { method: "DELETE", body: { name } });
+
 // メイン画面の並べ替え結果を保存する（表示順に並んだ workspaceId の配列）
 export const reorderWorkspaces = (order: number[]) =>
   apiFetch<{ workspaces: Workspace[] }>("/api/workspaces/reorder", {

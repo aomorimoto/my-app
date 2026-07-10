@@ -3,6 +3,7 @@ import {
   fetchWorkspaces,
   createWorkspace,
   updateWorkspace,
+  deleteWorkspace,
   reorderWorkspaces,
   activateWorkspace,
   fetchMembers,
@@ -34,6 +35,25 @@ export function useUpdateWorkspace(id: number) {
       qc.invalidateQueries({ queryKey: ["workspaces"] });
       qc.invalidateQueries({ queryKey: ["me"] });
       qc.invalidateQueries({ queryKey: ["home"] }); // 集約ビューのWSバッジにも反映
+    },
+  });
+}
+
+// ワークスペース削除（OWNER のみ、確認名の一致が必要）。削除後はアクティブWSが
+// 別の所属へ再解決されるため、ワークスペース依存のキャッシュを広く無効化する。
+export function useDeleteWorkspace(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => deleteWorkspace(id, name),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workspaces"] });
+      qc.invalidateQueries({ queryKey: ["me"] }); // アクティブWSの再解決を反映
+      qc.invalidateQueries({ queryKey: ["home"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["agents"] });
+      qc.invalidateQueries({ queryKey: ["tags"] });
+      qc.invalidateQueries({ queryKey: ["members"] });
     },
   });
 }

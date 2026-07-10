@@ -144,6 +144,35 @@ button {
   border-color: #fecaca;
   background: #fef2f2;
 }
+/* 破壊的操作用のプライマリ級ボタン（ワークスペース削除など） */
+.btn-danger {
+  display: inline-block;
+  background: var(--danger);
+  color: #fff;
+  border: 1px solid var(--danger);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-danger:hover {
+  background: #b91c1c;
+}
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+/* 危険な操作ゾーン（設定 → 一般の末尾）。赤系の枠で他セクションと区別する。 */
+.danger-zone {
+  border: 1px solid #fecaca;
+  margin-top: 24px;
+}
+.danger-title {
+  margin: 0 0 8px;
+  color: var(--danger);
+  font-size: 1rem;
+}
 .link-btn {
   background: none;
   border: none;

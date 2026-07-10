@@ -5,6 +5,7 @@ import {
   workspaceCreateSchema,
   workspaceUpdateSchema,
   workspaceReorderSchema,
+  workspaceDeleteSchema,
   memberAddSchema,
   memberRoleSchema,
 } from "./schemas";
@@ -139,6 +140,48 @@ apiWorkspacesRouter.patch("/:id", async (req, res) => {
       memberCount: workspace._count.members,
     },
   });
+});
+
+// ワークスペース削除（OWNER のみ）。誤削除防止のため、確認用に入力された名前の一致を必須にする。
+// 配下のタスク/タグ/エージェント/メンバー/コメントは FK の onDelete: Cascade で連鎖削除される。
+apiWorkspacesRouter.delete("/:id", async (req, res) => {
+  const userId = req.userId!;
+  const id = parseId(req.params.id);
+  const role = await requireMembership(userId, id);
+  requireRole(role, ["OWNER"]);
+
+  const workspace = await prisma.workspace.findUnique({
+    where: { id },
+    select: { name: true },
+  });
+  if (!workspace) throw new HttpError(404, "ワークスペースが見つかりません。", "NOT_FOUND");
+
+  // 確認入力（ワークスペース名）の一致を必須にして、誤操作による削除を防ぐ。
+  const { name } = workspaceDeleteSchema.parse(req.body);
+  if (name !== workspace.name) {
+    throw new HttpError(400, "入力されたワークスペース名が一致しません。", "NAME_MISMATCH");
+  }
+
+  // 自分の所属がこれ1つだけの場合、削除するとどのワークスペースにも属さなくなり
+  // アプリを操作できなくなるため禁止する（先に別のワークスペースを用意してもらう）。
+  const membershipCount = await prisma.membership.count({ where: { userId } });
+  if (membershipCount <= 1) {
+    throw new HttpError(
+      409,
+      "最後のワークスペースは削除できません。先に別のワークスペースを作成してください。",
+      "LAST_WORKSPACE"
+    );
+  }
+
+  await prisma.workspace.delete({ where: { id } });
+
+  // 削除したワークスペースがセッションのアクティブWSだった場合は選択を解除し、
+  // 次回リクエストで別の所属ワークスペースへ再解決させる。
+  if (req.session.workspaceId === id) {
+    req.session.workspaceId = undefined;
+  }
+
+  res.status(204).end();
 });
 
 // メイン画面のワークスペース並べ替え（自分の Membership.position を配列順で更新）。

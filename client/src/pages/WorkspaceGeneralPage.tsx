@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { useMe } from "../queries/auth";
-import { useUpdateWorkspace } from "../queries/workspaces";
+import { useUpdateWorkspace, useDeleteWorkspace } from "../queries/workspaces";
 import { fileToSquareDataUrl } from "../lib/image";
 import WorkspaceIcon from "../components/WorkspaceIcon";
 
@@ -10,7 +11,10 @@ export default function WorkspaceGeneralPage() {
   const active = meQ.data?.activeWorkspace;
   const activeId = active?.id;
   const canManage = active?.role === "OWNER" || active?.role === "ADMIN";
+  const isOwner = active?.role === "OWNER";
   const update = useUpdateWorkspace(activeId ?? 0);
+  const remove = useDeleteWorkspace(activeId ?? 0);
+  const navigate = useNavigate();
 
   const [name, setName] = useState("");
   const [iconColor, setIconColor] = useState("#6366f1");
@@ -18,6 +22,11 @@ export default function WorkspaceGeneralPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // 削除の確認フロー（誤削除防止のためワークスペース名の再入力を求める）
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (active) {
@@ -62,6 +71,19 @@ export default function WorkspaceGeneralPage() {
         onError: fail,
       }
     );
+  };
+
+  // 入力された確認名が現在のワークスペース名と完全一致したときだけ削除を許可する。
+  const confirmMatches = confirmName.trim() === active.name;
+
+  const onDelete = (e: FormEvent) => {
+    e.preventDefault();
+    if (!confirmMatches) return;
+    setDeleteError(null);
+    remove.mutate(confirmName.trim(), {
+      onSuccess: () => navigate("/"),
+      onError: (err) => setDeleteError((err as Error)?.message || "削除に失敗しました。"),
+    });
   };
 
   return (
@@ -119,6 +141,67 @@ export default function WorkspaceGeneralPage() {
             </button>
           </div>
         </form>
+      )}
+
+      {isOwner && (
+        <section className="card danger-zone">
+          <h3 className="danger-title">危険な操作</h3>
+          <p className="muted">
+            ワークスペースを削除すると、含まれるタスク・タグ・AI エージェント・メンバー・コメントも
+            すべて完全に削除されます。この操作は取り消せません。
+          </p>
+
+          {!confirmOpen ? (
+            <div className="actions">
+              <button
+                type="button"
+                className="btn-danger"
+                onClick={() => {
+                  setConfirmOpen(true);
+                  setConfirmName("");
+                  setDeleteError(null);
+                }}
+              >
+                このワークスペースを削除
+              </button>
+            </div>
+          ) : (
+            <form className="stack-form" onSubmit={onDelete}>
+              {deleteError && <p className="error">{deleteError}</p>}
+              <label>
+                確認のため、ワークスペース名「<strong>{active.name}</strong>」を入力してください
+                <input
+                  type="text"
+                  value={confirmName}
+                  onChange={(e) => setConfirmName(e.target.value)}
+                  placeholder={active.name}
+                  autoFocus
+                />
+              </label>
+              <div className="actions">
+                <button
+                  type="submit"
+                  className="btn-danger"
+                  disabled={!confirmMatches || remove.isPending}
+                >
+                  {remove.isPending ? "削除中…" : "完全に削除する"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-small"
+                  onClick={() => {
+                    setConfirmOpen(false);
+                    setConfirmName("");
+                    setDeleteError(null);
+                  }}
+                  disabled={remove.isPending}
+                >
+                  キャンセル
+                </button>
+              </div>
+            </form>
+          )}
+        </section>
       )}
     </>
   );
