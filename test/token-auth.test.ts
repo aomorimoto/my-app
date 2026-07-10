@@ -1,15 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import request from "supertest";
 import { app, resetDb, signupAgent, createToken, closeDb } from "./helpers";
-import { prisma } from "../src/db";
 
 beforeEach(resetDb);
 afterAll(closeDb);
 
-// 個人アクセストークン（Bearer）認証のテスト。
-// Cookie/CSRF を持たない MCP クライアント想定で、Authorization: Bearer <token> だけで API が通ること、
-// 不正/欠落トークンは 401 になることを確認する。
-describe("Bearer トークン認証（PAT）", () => {
+// Bearer（OAuth アクセストークン）認証のテスト。
+// Cookie/CSRF を持たない リモート MCP クライアント想定で、Authorization: Bearer <token> だけで
+// API が通ること、不正/欠落トークンは 401 になることを確認する。
+describe("Bearer トークン認証（OAuth アクセストークン）", () => {
   it("Bearer で GET /api/tasks が通る（Cookie/CSRF なし）", async () => {
     const { userId } = await signupAgent();
     const token = await createToken(userId);
@@ -69,28 +68,9 @@ describe("Bearer トークン認証（PAT）", () => {
   it("不正なトークンは 401 UNAUTHENTICATED", async () => {
     const res = await request(app)
       .get("/api/tasks")
-      .set("Authorization", "Bearer pat_invalid_xxx");
+      .set("Authorization", "Bearer mcp_at_invalid_xxx");
 
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe("UNAUTHENTICATED");
-  });
-
-  it("利用すると lastUsedAt が更新される", async () => {
-    const { userId } = await signupAgent();
-    const token = await createToken(userId);
-
-    await request(app).get("/api/tasks").set("Authorization", `Bearer ${token}`);
-
-    // lastUsedAt の更新は fire-and-forget なので、反映まで短くポーリングする
-    let lastUsedAt: Date | null = null;
-    for (let i = 0; i < 20 && lastUsedAt === null; i++) {
-      const row = await prisma.personalAccessToken.findFirst({
-        where: { userId },
-        select: { lastUsedAt: true },
-      });
-      lastUsedAt = row?.lastUsedAt ?? null;
-      if (lastUsedAt === null) await new Promise((r) => setTimeout(r, 20));
-    }
-    expect(lastUsedAt).not.toBeNull();
   });
 });

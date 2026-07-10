@@ -23,10 +23,12 @@ declare global {
   }
 }
 
-// 認証ミドルウェア。session Cookie か Authorization: Bearer <token> のどちらかから
-// ユーザーを特定し、req.userId にセットする（design.md §8「既存 userId スコープに合流」）。
+// 認証ミドルウェア。session Cookie か Authorization: Bearer <token>（リモート MCP の
+// OAuth アクセストークン）のどちらかからユーザーを特定し、req.userId にセットする
+// （design.md §8「既存 userId スコープに合流」）。
 // - Cookie セッションがあればそれを優先（DB アクセス無し）。
-// - 無ければ Bearer トークンをハッシュして PersonalAccessToken を照合。
+// - 無ければ Bearer トークンをハッシュして OAuthAccessToken を照合（期限内のみ有効）。
+//   これにより MCP ツールのループバック /api 呼び出しが既存の認可に合流する。
 // - どちらも無ければ何もしない（後段の requireAuthApi が 401 を返す）。
 // Bearer 認証時は req.session を書き換えない（無駄なセッション行を作らないため）。
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
@@ -40,29 +42,13 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     const raw = header.slice("Bearer ".length).trim();
     if (raw) {
       const tokenHash = hashToken(raw);
-      // まず PAT（個人アクセストークン）を照合。
-      const pat = await prisma.personalAccessToken.findUnique({
+      const at = await prisma.oAuthAccessToken.findUnique({
         where: { tokenHash },
-        select: { id: true, userId: true },
+        select: { userId: true, expiresAt: true },
       });
-      if (pat) {
-        req.userId = pat.userId;
+      if (at && at.expiresAt > new Date()) {
+        req.userId = at.userId;
         req.bearerAuth = true;
-        // 最終利用日時を更新（失敗してもリクエストは続行）
-        prisma.personalAccessToken
-          .update({ where: { id: pat.id }, data: { lastUsedAt: new Date() } })
-          .catch(() => {});
-      } else {
-        // 次にリモート MCP の OAuth アクセストークンを照合（期限内のみ有効）。
-        // これにより MCP ツールのループバック /api 呼び出しが既存の認可に合流する。
-        const at = await prisma.oAuthAccessToken.findUnique({
-          where: { tokenHash },
-          select: { userId: true, expiresAt: true },
-        });
-        if (at && at.expiresAt > new Date()) {
-          req.userId = at.userId;
-          req.bearerAuth = true;
-        }
       }
     }
   }

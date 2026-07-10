@@ -10,10 +10,7 @@
     "client:build": "npm --prefix client run build",
     "test": "vitest run",
     "test:watch": "vitest",
-    "lint": "eslint .",
-    "token:create": "tsx scripts/token-create.ts",
-    "token:list": "tsx scripts/token-list.ts",
-    "token:revoke": "tsx scripts/token-revoke.ts"
+    "lint": "eslint ."
   },
   "keywords": [],
   "author": "",

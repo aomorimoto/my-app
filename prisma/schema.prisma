@@ -26,7 +26,6 @@ model User {
   assignedTasks   Task[]       @relation("TaskAssignee")
   agents          Agent[]      @relation("AgentOwner") // 本人が使う AI エージェント
   comments        Comment[]    @relation("CommentAuthor")
-  personalAccessTokens PersonalAccessToken[] // MCP 等の Bearer 認証用トークン
   // リモート MCP の OAuth（自前認可サーバ）で発行する認可コード/トークン
   oauthAuthorizationCodes OAuthAuthorizationCode[]
   oauthAccessTokens       OAuthAccessToken[]
@@ -140,20 +139,8 @@ model Comment {
   updatedAt DateTime @updatedAt
 }
 
-// 個人アクセストークン（MCP サーバ等が Authorization: Bearer で API を呼ぶ用）。
-// 平文は保存せず、SHA-256 ハッシュ（決定的）を保存して逆引き検索する。design.md §8。
-model PersonalAccessToken {
-  id         Int       @id @default(autoincrement())
-  tokenHash  String    @unique // SHA-256(hex)。平文は発行時のみ表示し保存しない
-  userId     Int
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  label      String // 用途の識別名（例: mcp）
-  createdAt  DateTime  @default(now())
-  lastUsedAt DateTime? // 最終利用日時（利用のたびに更新）
-}
-
 // --- リモート MCP 用の OAuth 2.1（自前の認可サーバ兼リソースサーバ）---
-// PAT と同じく、コード/トークンは平文を保存せず SHA-256 ハッシュ（決定的）で保存し逆引きする。
+// コード/トークンは平文を保存せず SHA-256 ハッシュ（決定的）で保存し逆引きする。
 // design.md §8 の「将来はリモート/ホスト型 MCP」を OAuth で具体化したもの。
 
 // OAuth クライアント（Claude が動的クライアント登録 RFC 7591 で自動作成する。基本は公開/PKCE クライアント）。
