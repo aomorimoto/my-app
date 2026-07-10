@@ -6,7 +6,7 @@ export default function SignupPage() {
   const meQ = useMe();
   const signup = useSignup();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +17,7 @@ export default function SignupPage() {
     e.preventDefault();
     setError(null);
     signup.mutate(
-      { email, password, name: name || undefined },
+      { username, password, name: name || undefined },
       {
         onSuccess: () => navigate("/"),
         onError: (err) => setError(err.message || "登録に失敗しました。"),
@@ -32,11 +32,13 @@ export default function SignupPage() {
         {error && <p className="error">{error}</p>}
         <form className="form" onSubmit={onSubmit}>
           <label>
-            メールアドレス
+            ユーザーID（英小文字・数字・_ . - の3〜30文字）
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
+              pattern="[A-Za-z0-9_.\-]{3,30}"
               required
               autoFocus
             />

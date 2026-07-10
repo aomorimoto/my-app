@@ -53,7 +53,7 @@ export default function AccountPage() {
   };
 
   // プレビュー用の擬似ユーザー（現在のフォーム値でアバターを表示）
-  const preview = { name, email: user.email, avatarColor, avatarImage };
+  const preview = { name, username: user.username, avatarColor, avatarImage };
 
   const onSaveProfile = (e: FormEvent) => {
     e.preventDefault();
@@ -111,8 +111,8 @@ export default function AccountPage() {
             <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="表示名" />
           </label>
           <label>
-            ユーザーID（メールアドレス）
-            <input type="text" value={user.email} disabled />
+            ユーザーID
+            <input type="text" value={user.username} disabled />
           </label>
           <div className="actions">
             <button type="submit" className="btn-primary" disabled={update.isPending}>

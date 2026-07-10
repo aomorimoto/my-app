@@ -27,14 +27,14 @@ let counter = 0;
 // CSRF 保護が有効なので、agent の状態変更メソッド（post/put/patch/delete）は
 // X-CSRF-Token ヘッダを自動付与するようラップする（既存テストを無改修にするため）。
 export async function signupAgent(
-  overrides: { email?: string; password?: string; name?: string } = {}
+  overrides: { username?: string; password?: string; name?: string } = {}
 ) {
-  const email = overrides.email ?? `user${++counter}@example.com`;
+  const username = overrides.username ?? `user${++counter}`;
   const password = overrides.password ?? "password123";
   const name = overrides.name ?? "テスト太郎";
 
   const agent = supertest.agent(app);
-  const res = await agent.post("/api/auth/signup").send({ email, password, name });
+  const res = await agent.post("/api/auth/signup").send({ username, password, name });
   if (res.status !== 201) {
     throw new Error(`signup 失敗: ${res.status} ${JSON.stringify(res.body)}`);
   }
@@ -47,7 +47,7 @@ export async function signupAgent(
     (agent as any)[m] = (url: string) => orig(url).set("X-CSRF-Token", token);
   }
 
-  return { agent, email, password, name, csrfToken: token, userId: res.body.user.id as number };
+  return { agent, username, password, name, csrfToken: token, userId: res.body.user.id as number };
 }
 
 // 指定ユーザーの OAuth アクセストークンを発行し、平文を返す（Bearer 認証テスト用）。

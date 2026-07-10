@@ -8,7 +8,7 @@ export default function UserAvatar({
 }: {
   user: {
     name: string | null;
-    email: string;
+    username: string;
     avatarColor?: string | null;
     avatarImage?: string | null;
   };

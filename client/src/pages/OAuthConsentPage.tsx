@@ -76,7 +76,7 @@ export default function OAuthConsentPage() {
           <UserAvatar user={user} size={40} />
           <div>
             <div className="consent-name">{memberLabel(user)}</div>
-            <div className="muted">{user.email}</div>
+            <div className="muted">@{user.username}</div>
           </div>
         </div>
 

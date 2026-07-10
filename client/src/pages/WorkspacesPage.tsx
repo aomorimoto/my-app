@@ -23,7 +23,7 @@ export default function WorkspacesPage() {
   const updateRole = useUpdateMemberRole(activeId ?? 0);
   const removeMember = useRemoveMember(activeId ?? 0);
 
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [role, setRole] = useState<Role>("MEMBER");
   const [addError, setAddError] = useState<string | null>(null);
 
@@ -33,10 +33,10 @@ export default function WorkspacesPage() {
     e.preventDefault();
     setAddError(null);
     addMember.mutate(
-      { email, role },
+      { username, role },
       {
         onSuccess: () => {
-          setEmail("");
+          setUsername("");
           setRole("MEMBER");
         },
         onError: (err) => setAddError(err.message || "追加に失敗しました。"),
@@ -68,7 +68,7 @@ export default function WorkspacesPage() {
                   {memberLabel(m)}
                   {isSelf && <span className="muted">（あなた）</span>}
                 </span>
-                <span className="muted member-email">{m.email}</span>
+                <span className="muted member-email">@{m.username}</span>
                 {showControls ? (
                   <select
                     className="role-select"
@@ -107,14 +107,14 @@ export default function WorkspacesPage() {
         <form className="form card member-form" onSubmit={onAdd}>
           <h2>メンバーを追加</h2>
           {addError && <p className="error">{addError}</p>}
-          <p className="muted">既に登録済みのユーザーをメールアドレスで追加します。</p>
+          <p className="muted">既に登録済みのユーザーをユーザーIDで追加します。</p>
           <label className="grow">
-            メールアドレス
+            ユーザーID
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="member@example.com"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="member_id"
               required
             />
           </label>

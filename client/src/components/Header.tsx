@@ -61,7 +61,7 @@ export default function Header() {
             <div className="account-menu" role="menu">
               <div className="account-menu-head">
                 <div className="account-menu-name">{user.name || "（名前未設定）"}</div>
-                <div className="account-menu-email muted">{user.email}</div>
+                <div className="account-menu-email muted">@{user.username}</div>
               </div>
               <Link
                 to="/account"

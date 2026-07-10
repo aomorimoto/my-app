@@ -8,7 +8,7 @@ export const apiHomeRouter = Router();
 // 集約ビューのタスク include（ダッシュボードと同等の軽量版）。
 // どのワークスペースのタスクかを示すため workspace(id,name) を追加で含める。
 const homeTaskInclude = {
-  assignee: { select: { id: true, email: true, name: true, avatarColor: true, avatarImage: true } },
+  assignee: { select: { id: true, username: true, name: true, avatarColor: true, avatarImage: true } },
   assigneeAgent: { select: { id: true, name: true, color: true, iconImage: true } },
   taskTags: { include: { tag: true } },
   workspace: { select: { id: true, name: true, iconColor: true, iconImage: true } },

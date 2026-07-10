@@ -13,7 +13,7 @@ datasource db {
 // アプリ利用者アカウント
 model User {
   id              Int          @id @default(autoincrement())
-  email           String       @unique
+  username        String       @unique // ログイン識別子（英小文字・数字・_ . - の 3〜30 文字）
   password        String // bcrypt でハッシュ化したパスワード
   name            String?
   avatarColor     String? // アバターの単色背景（#RRGGBB）。未設定なら既定色をアプリ側で決める

@@ -19,10 +19,10 @@ export interface UpdateMeInput {
 export const updateMe = (body: UpdateMeInput) =>
   apiFetch<{ user: User }>("/api/users/me", { method: "PATCH", body });
 
-export const login = (body: { email: string; password: string }) =>
+export const login = (body: { username: string; password: string }) =>
   apiFetch<{ user: User }>("/api/auth/login", { method: "POST", body });
 
-export const signup = (body: { email: string; password: string; name?: string }) =>
+export const signup = (body: { username: string; password: string; name?: string }) =>
   apiFetch<{ user: User }>("/api/auth/signup", { method: "POST", body });
 
 export const logout = () => apiFetch<null>("/api/auth/logout", { method: "POST" });

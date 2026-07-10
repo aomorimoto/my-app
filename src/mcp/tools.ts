@@ -333,10 +333,10 @@ export function registerTaskappTools(server: McpServer) {
     {
       title: "メンバー追加",
       description:
-        "既存ユーザーをメールアドレスでワークスペースに追加する（OWNER/ADMIN のみ）。role 省略時は MEMBER。相手は登録済みユーザーである必要がある。",
+        "既存ユーザーをユーザーID（username）でワークスペースに追加する（OWNER/ADMIN のみ）。role 省略時は MEMBER。相手は登録済みユーザーである必要がある。username は list_members で確認できる。",
       inputSchema: {
         workspaceId: z.number().int().positive().describe("対象ワークスペースID"),
-        email: z.string().email(),
+        username: z.string().min(1).describe("追加するユーザーのユーザーID"),
         role: assignableRole.optional(),
       },
     },

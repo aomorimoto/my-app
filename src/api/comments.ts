@@ -19,7 +19,7 @@ async function assertTaskInWorkspace(workspaceId: number, taskId: number) {
 
 // コメントの公開表現に整える（投稿者情報を含める）
 const commentInclude = {
-  author: { select: { id: true, email: true, name: true } },
+  author: { select: { id: true, username: true, name: true } },
 } as const;
 
 // コメント一覧（古い順）。メンバーなら閲覧可。

@@ -17,7 +17,7 @@ async function createSecondWorkspace(a: Signed, name: string) {
 
 describe("workspace delete API", () => {
   it("OWNER は確認名が一致すれば削除できる（204）", async () => {
-    const a = await signupAgent({ email: "ws-del@example.com" });
+    const a = await signupAgent({ username: "ws-del" });
     const wsId = await createSecondWorkspace(a, "削除対象WS");
 
     const res = await a.agent.delete(`/api/workspaces/${wsId}`).send({ name: "削除対象WS" });
@@ -31,7 +31,7 @@ describe("workspace delete API", () => {
   });
 
   it("確認名が一致しないと削除できない（400 NAME_MISMATCH）", async () => {
-    const a = await signupAgent({ email: "ws-mismatch@example.com" });
+    const a = await signupAgent({ username: "ws-mismatch" });
     const wsId = await createSecondWorkspace(a, "本番用WS");
 
     const res = await a.agent.delete(`/api/workspaces/${wsId}`).send({ name: "ちがう名前" });
@@ -42,7 +42,7 @@ describe("workspace delete API", () => {
   });
 
   it("確認名が空だと 400（バリデーション）", async () => {
-    const a = await signupAgent({ email: "ws-empty@example.com" });
+    const a = await signupAgent({ username: "ws-empty" });
     const wsId = await createSecondWorkspace(a, "空確認WS");
 
     const res = await a.agent.delete(`/api/workspaces/${wsId}`).send({ name: "" });
@@ -51,7 +51,7 @@ describe("workspace delete API", () => {
   });
 
   it("配下のタスク・タグも連鎖削除される", async () => {
-    const a = await signupAgent({ email: "ws-cascade@example.com" });
+    const a = await signupAgent({ username: "ws-cascade" });
     const wsId = await createSecondWorkspace(a, "カスケードWS");
 
     // 対象WSをアクティブ化してからタスク/タグを作成する
@@ -70,7 +70,7 @@ describe("workspace delete API", () => {
   });
 
   it("最後のワークスペースは削除できない（409 LAST_WORKSPACE）", async () => {
-    const a = await signupAgent({ email: "ws-last@example.com" });
+    const a = await signupAgent({ username: "ws-last" });
     const me = await a.agent.get("/api/auth/me");
     const wsId = me.body.activeWorkspace.id as number;
     const name = me.body.activeWorkspace.name as string;
@@ -82,8 +82,8 @@ describe("workspace delete API", () => {
   });
 
   it("ADMIN は削除できない（403 FORBIDDEN）", async () => {
-    const owner = await signupAgent({ email: "ws-adm-owner@example.com" });
-    const member = await signupAgent({ email: "ws-adm-member@example.com" });
+    const owner = await signupAgent({ username: "ws-adm-owner" });
+    const member = await signupAgent({ username: "ws-adm-member" });
 
     const created = await owner.agent.post("/api/workspaces").send({ name: "共有WS" });
     const wsId = created.body.workspace.id as number;
@@ -91,7 +91,7 @@ describe("workspace delete API", () => {
     // ADMIN としてメンバー追加
     const add = await owner.agent
       .post(`/api/workspaces/${wsId}/members`)
-      .send({ email: "ws-adm-member@example.com", role: "ADMIN" });
+      .send({ username: "ws-adm-member", role: "ADMIN" });
     expect(add.status).toBe(201);
     expect(add.body.member.role).toBe("ADMIN");
 
@@ -103,8 +103,8 @@ describe("workspace delete API", () => {
   });
 
   it("非メンバーは他人のワークスペースを削除できない（403）", async () => {
-    const a = await signupAgent({ email: "ws-a@example.com" });
-    const b = await signupAgent({ email: "ws-b@example.com" });
+    const a = await signupAgent({ username: "ws-a" });
+    const b = await signupAgent({ username: "ws-b" });
 
     const meA = await a.agent.get("/api/auth/me");
     const wsId = meA.body.activeWorkspace.id as number;

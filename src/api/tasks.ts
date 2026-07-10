@@ -37,7 +37,7 @@ function subtaskNode(depth: number): any {
     assigneeId: true,
     assigneeAgentId: true,
     createdAt: true,
-    assignee: { select: { id: true, email: true, name: true, avatarColor: true, avatarImage: true } },
+    assignee: { select: { id: true, username: true, name: true, avatarColor: true, avatarImage: true } },
     assigneeAgent: { select: { id: true, name: true, color: true, iconImage: true } },
     taskTags: { include: { tag: true } },
     _count: { select: { comments: true, subtasks: true } },
@@ -50,7 +50,7 @@ function subtaskNode(depth: number): any {
 
 // タスクレスポンス共通の include（担当者[人間/AI]＋タグ＋サブタスクツリー＋コメント件数）
 const taskInclude = {
-  assignee: { select: { id: true, email: true, name: true, avatarColor: true, avatarImage: true } },
+  assignee: { select: { id: true, username: true, name: true, avatarColor: true, avatarImage: true } },
   assigneeAgent: { select: { id: true, name: true, color: true, iconImage: true } },
   taskTags: { include: { tag: true } },
   subtasks: { select: subtaskNode(SUBTASK_DEPTH), orderBy: SIBLING_ORDER },

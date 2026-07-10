@@ -7,33 +7,41 @@ afterAll(closeDb);
 
 describe("auth API", () => {
   it("signup すると 201 で、/me が本人と OWNER ワークスペースを返す", async () => {
-    const { agent } = await signupAgent({ email: "alice@example.com", name: "アリス" });
+    const { agent } = await signupAgent({ username: "alice", name: "アリス" });
 
     const me = await agent.get("/api/auth/me");
     expect(me.status).toBe(200);
-    expect(me.body.user.email).toBe("alice@example.com");
+    expect(me.body.user.username).toBe("alice");
     expect(me.body.activeWorkspace).toMatchObject({ role: "OWNER" });
   });
 
-  it("重複メールでの signup は 409", async () => {
-    await signupAgent({ email: "dup@example.com" });
+  it("重複ユーザーIDでの signup は 409", async () => {
+    await signupAgent({ username: "dupuser" });
     const res = await request(app)
       .post("/api/auth/signup")
-      .send({ email: "dup@example.com", password: "password123" });
+      .send({ username: "dupuser", password: "password123" });
     expect(res.status).toBe(409);
-    expect(res.body.error.code).toBe("EMAIL_TAKEN");
+    expect(res.body.error.code).toBe("USERNAME_TAKEN");
+  });
+
+  it("不正な形式のユーザーIDは 400", async () => {
+    const res = await request(app)
+      .post("/api/auth/signup")
+      .send({ username: "bad user!", password: "password123" });
+    expect(res.status).toBe(400);
+    expect(res.body.error.code).toBe("VALIDATION");
   });
 
   it("正しい資格情報での login は 200 でユーザーを返す", async () => {
-    const { email, password } = await signupAgent({ email: "bob@example.com" });
-    const res = await request(app).post("/api/auth/login").send({ email, password });
+    const { username, password } = await signupAgent({ username: "bob" });
+    const res = await request(app).post("/api/auth/login").send({ username, password });
     expect(res.status).toBe(200);
-    expect(res.body.user.email).toBe("bob@example.com");
+    expect(res.body.user.username).toBe("bob");
   });
 
   it("誤ったパスワードでの login は 401", async () => {
-    const { email } = await signupAgent({ email: "carol@example.com" });
-    const res = await request(app).post("/api/auth/login").send({ email, password: "wrongpass" });
+    const { username } = await signupAgent({ username: "carol" });
+    const res = await request(app).post("/api/auth/login").send({ username, password: "wrongpass" });
     expect(res.status).toBe(401);
     expect(res.body.error.code).toBe("INVALID_CREDENTIALS");
   });

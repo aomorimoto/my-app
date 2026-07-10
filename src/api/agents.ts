@@ -14,7 +14,7 @@ function toAgent(a: {
   iconImage: string | null;
   workspaceId: number;
   ownerId: number | null;
-  owner?: { id: number; email: string; name: string | null } | null;
+  owner?: { id: number; username: string; name: string | null } | null;
   _count?: { assignedTasks: number };
 }) {
   return {
@@ -36,7 +36,7 @@ apiAgentsRouter.get("/", async (req, res) => {
     where: { workspaceId },
     orderBy: { name: "asc" },
     include: {
-      owner: { select: { id: true, email: true, name: true } },
+      owner: { select: { id: true, username: true, name: true } },
       _count: { select: { assignedTasks: true } },
     },
   });
@@ -52,7 +52,7 @@ apiAgentsRouter.post("/", async (req, res) => {
   try {
     const agent = await prisma.agent.create({
       data: { name, color: color ?? "#6b7280", iconImage: iconImage ?? null, workspaceId, ownerId: userId },
-      include: { owner: { select: { id: true, email: true, name: true } } },
+      include: { owner: { select: { id: true, username: true, name: true } } },
     });
     res.status(201).json({ agent: toAgent(agent) });
   } catch (err: any) {
@@ -84,7 +84,7 @@ apiAgentsRouter.patch("/:id", async (req, res) => {
     const agent = await prisma.agent.update({
       where: { id },
       data,
-      include: { owner: { select: { id: true, email: true, name: true } } },
+      include: { owner: { select: { id: true, username: true, name: true } } },
     });
     res.json({ agent: toAgent(agent) });
   } catch (err: any) {

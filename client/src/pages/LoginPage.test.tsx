@@ -31,7 +31,7 @@ describe("LoginPage", () => {
     renderWithProviders(<LoginPage />);
 
     expect(await screen.findByRole("heading", { name: "ログイン" })).toBeInTheDocument();
-    expect(screen.getByLabelText("メールアドレス")).toBeInTheDocument();
+    expect(screen.getByLabelText("ユーザーID")).toBeInTheDocument();
     expect(screen.getByLabelText("パスワード")).toBeInTheDocument();
   });
 
@@ -42,7 +42,7 @@ describe("LoginPage", () => {
     // 2回目: /api/auth/login（401）
     fetchMock.mockResolvedValueOnce(
       jsonResponse(401, {
-        error: { code: "INVALID_CREDENTIALS", message: "メールアドレスまたはパスワードが違います。" },
+        error: { code: "INVALID_CREDENTIALS", message: "ユーザーIDまたはパスワードが違います。" },
       })
     );
     vi.stubGlobal("fetch", fetchMock);
@@ -50,12 +50,12 @@ describe("LoginPage", () => {
     renderWithProviders(<LoginPage />);
 
     await screen.findByRole("heading", { name: "ログイン" });
-    await userEvent.type(screen.getByLabelText("メールアドレス"), "bad@example.com");
+    await userEvent.type(screen.getByLabelText("ユーザーID"), "baduser");
     await userEvent.type(screen.getByLabelText("パスワード"), "wrongpass");
     await userEvent.click(screen.getByRole("button", { name: "ログイン" }));
 
     expect(
-      await screen.findByText("メールアドレスまたはパスワードが違います。")
+      await screen.findByText("ユーザーIDまたはパスワードが違います。")
     ).toBeInTheDocument();
   });
 });

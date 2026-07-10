@@ -7,7 +7,7 @@ export const apiUsersRouter = Router();
 // 返却用のユーザー select（パスワード等は含めない）
 const publicSelect = {
   id: true,
-  email: true,
+  username: true,
   name: true,
   avatarColor: true,
   avatarImage: true,
@@ -16,7 +16,7 @@ const publicSelect = {
 
 function publicUser(user: {
   id: number;
-  email: string;
+  username: string;
   name: string | null;
   avatarColor: string | null;
   avatarImage: string | null;
@@ -24,7 +24,7 @@ function publicUser(user: {
 }) {
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     name: user.name,
     avatarColor: user.avatarColor,
     avatarImage: user.avatarImage,

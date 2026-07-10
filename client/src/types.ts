@@ -16,7 +16,7 @@ export interface ColorPrefs {
 
 export interface User {
   id: number;
-  email: string;
+  username: string;
   name: string | null;
   avatarColor?: string | null; // アバターの単色背景（未設定なら既定色）
   avatarImage?: string | null; // アバター画像（data URI。あれば色より優先）
@@ -46,7 +46,7 @@ export interface Workspace {
 // ワークスペースのメンバー（/api/workspaces/:id/members の要素）
 export interface Member {
   id: number; // userId
-  email: string;
+  username: string;
   name: string | null;
   avatarColor?: string | null;
   avatarImage?: string | null;

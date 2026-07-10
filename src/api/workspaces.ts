@@ -47,7 +47,7 @@ async function listWorkspaces(userId: number) {
 // メンバー一覧で取得するユーザー select（アバター表示用の色/画像も含める）
 const memberUserSelect = {
   id: true,
-  email: true,
+  username: true,
   name: true,
   avatarColor: true,
   avatarImage: true,
@@ -59,7 +59,7 @@ function toMember(m: {
   joinedAt: Date;
   user: {
     id: number;
-    email: string;
+    username: string;
     name: string | null;
     avatarColor?: string | null;
     avatarImage?: string | null;
@@ -67,7 +67,7 @@ function toMember(m: {
 }) {
   return {
     id: m.user.id,
-    email: m.user.email,
+    username: m.user.username,
     name: m.user.name,
     avatarColor: m.user.avatarColor ?? null,
     avatarImage: m.user.avatarImage ?? null,
@@ -239,20 +239,20 @@ apiWorkspacesRouter.get("/:id/members", async (req, res) => {
   res.json({ members: members.map(toMember) });
 });
 
-// メンバー追加（メールで既存ユーザーを直接追加。OWNER / ADMIN のみ）
+// メンバー追加（ユーザーIDで既存ユーザーを直接追加。OWNER / ADMIN のみ）
 apiWorkspacesRouter.post("/:id/members", async (req, res) => {
   const userId = req.userId!;
   const id = parseId(req.params.id);
   const role = await requireMembership(userId, id);
   requireRole(role, ["OWNER", "ADMIN"]);
-  const { email, role: newRole } = memberAddSchema.parse(req.body);
+  const { username, role: newRole } = memberAddSchema.parse(req.body);
 
   const target = await prisma.user.findUnique({
-    where: { email },
+    where: { username },
     select: memberUserSelect,
   });
   if (!target) {
-    throw new HttpError(404, "そのメールアドレスのユーザーが見つかりません。", "USER_NOT_FOUND");
+    throw new HttpError(404, "そのユーザーIDのユーザーが見つかりません。", "USER_NOT_FOUND");
   }
 
   const existing = await prisma.membership.findUnique({

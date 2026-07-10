@@ -9,9 +9,9 @@ export const ROLE_LABEL: Record<Role, string> = {
   MEMBER: "メンバー",
 };
 
-// 担当者などの表示名（名前が無ければメール）
-export function memberLabel(m: { name: string | null; email: string }): string {
-  return m.name || m.email;
+// 担当者などの表示名（名前が無ければユーザーID）
+export function memberLabel(m: { name: string | null; username: string }): string {
+  return m.name || m.username;
 }
 
 // 担当者セレクトは人間メンバーと AI エージェントを1つのドロップダウンで扱う。

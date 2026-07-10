@@ -56,8 +56,8 @@ describe("agents API / AI 担当者", () => {
   });
 
   it("他ワークスペースのエージェントは担当に指定できない（400）", async () => {
-    const a = await signupAgent({ email: "wsa@example.com" });
-    const b = await signupAgent({ email: "wsb@example.com" });
+    const a = await signupAgent({ username: "wsa" });
+    const b = await signupAgent({ username: "wsb" });
 
     const bAgent = await b.agent.post("/api/agents").send({ name: "B の AI" });
     const bAgentId = bAgent.body.agent.id;

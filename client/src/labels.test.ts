@@ -2,9 +2,9 @@ import { describe, it, expect } from "vitest";
 import { memberLabel, STATUS_LABEL, PRIORITY_LABEL, ROLE_LABEL } from "./labels";
 
 describe("labels", () => {
-  it("memberLabel は name があれば name、無ければ email を返す", () => {
-    expect(memberLabel({ name: "山田", email: "y@example.com" })).toBe("山田");
-    expect(memberLabel({ name: null, email: "y@example.com" })).toBe("y@example.com");
+  it("memberLabel は name があれば name、無ければ username を返す", () => {
+    expect(memberLabel({ name: "山田", username: "yamada" })).toBe("山田");
+    expect(memberLabel({ name: null, username: "yamada" })).toBe("yamada");
   });
 
   it("ステータス/優先度/役割のラベルが日本語で対応する", () => {

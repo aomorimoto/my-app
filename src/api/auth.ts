@@ -11,7 +11,7 @@ export const apiAuthRouter = Router();
 // クライアントに返すユーザー情報（パスワード等は含めない）
 function publicUser(user: {
   id: number;
-  email: string;
+  username: string;
   name: string | null;
   avatarColor?: string | null;
   avatarImage?: string | null;
@@ -19,7 +19,7 @@ function publicUser(user: {
 }) {
   return {
     id: user.id,
-    email: user.email,
+    username: user.username,
     name: user.name,
     avatarColor: user.avatarColor ?? null,
     avatarImage: user.avatarImage ?? null,
@@ -37,7 +37,7 @@ apiAuthRouter.get("/me", async (req, res) => {
     where: { id: userId },
     select: {
       id: true,
-      email: true,
+      username: true,
       name: true,
       avatarColor: true,
       avatarImage: true,
@@ -67,13 +67,13 @@ apiAuthRouter.get("/me", async (req, res) => {
   });
 });
 
-// 新規登録：ユーザー + 個人ワークスペース + OWNER メンバーシップ + 既定カテゴリを一括作成
+// 新規登録：ユーザー + 個人ワークスペース + OWNER メンバーシップを一括作成
 apiAuthRouter.post("/signup", authLimiter, async (req, res) => {
-  const { email, password, name } = signupSchema.parse(req.body);
+  const { username, password, name } = signupSchema.parse(req.body);
 
-  const exists = await prisma.user.findUnique({ where: { email } });
+  const exists = await prisma.user.findUnique({ where: { username } });
   if (exists) {
-    throw new HttpError(409, "このメールアドレスは既に登録されています。", "EMAIL_TAKEN");
+    throw new HttpError(409, "このユーザーIDは既に使われています。", "USERNAME_TAKEN");
   }
 
   const hashed = await bcrypt.hash(password, 10);
@@ -81,14 +81,14 @@ apiAuthRouter.post("/signup", authLimiter, async (req, res) => {
   // すべて成功するか、すべて失敗するか（データの整合性を担保）
   const { user, workspaceId } = await prisma.$transaction(async (tx) => {
     const user = await tx.user.create({
-      data: { email, name: name || null, password: hashed },
-      select: { id: true, email: true, name: true },
+      data: { username, name: name || null, password: hashed },
+      select: { id: true, username: true, name: true },
     });
 
     // 本人が OWNER となる個人ワークスペースを作成
     const workspace = await tx.workspace.create({
       data: {
-        name: `${name || email}のワークスペース`,
+        name: `${name || username}のワークスペース`,
         ownerId: user.id,
         members: { create: { userId: user.id, role: "OWNER" } },
       },
@@ -105,12 +105,12 @@ apiAuthRouter.post("/signup", authLimiter, async (req, res) => {
 
 // ログイン
 apiAuthRouter.post("/login", authLimiter, async (req, res) => {
-  const { email, password } = loginSchema.parse(req.body);
+  const { username, password } = loginSchema.parse(req.body);
 
-  const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { username } });
   // ユーザー有無に関わらず同じメッセージ（アカウント存在の漏洩を防ぐ）
   if (!user || !(await bcrypt.compare(password, user.password))) {
-    throw new HttpError(401, "メールアドレスまたはパスワードが違います。", "INVALID_CREDENTIALS");
+    throw new HttpError(401, "ユーザーIDまたはパスワードが違います。", "INVALID_CREDENTIALS");
   }
 
   req.session.userId = user.id;

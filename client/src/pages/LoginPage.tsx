@@ -18,7 +18,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const returnTo = safeReturnTo(searchParams.get("returnTo"));
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -36,7 +36,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     login.mutate(
-      { email, password },
+      { username, password },
       {
         onSuccess: () => {
           // OAuth 認可フローの途中なら /authorize へ全ページ遷移、通常はメイン画面へ。
@@ -55,11 +55,12 @@ export default function LoginPage() {
         {error && <p className="error">{error}</p>}
         <form className="form" onSubmit={onSubmit}>
           <label>
-            メールアドレス
+            ユーザーID
             <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              autoComplete="username"
               required
               autoFocus
             />

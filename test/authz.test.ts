@@ -6,8 +6,8 @@ afterAll(closeDb);
 
 describe("authorization", () => {
   it("他ワークスペースのタスクは参照できない（404）", async () => {
-    const a = await signupAgent({ email: "owner-a@example.com" });
-    const b = await signupAgent({ email: "owner-b@example.com" });
+    const a = await signupAgent({ username: "owner-a" });
+    const b = await signupAgent({ username: "owner-b" });
 
     const created = await a.agent.post("/api/tasks").send({ title: "A のタスク" });
     const id = created.body.task.id;
@@ -18,8 +18,8 @@ describe("authorization", () => {
   });
 
   it("他ワークスペースのエージェントは削除できない（404）", async () => {
-    const a = await signupAgent({ email: "agent-a@example.com" });
-    const b = await signupAgent({ email: "agent-b@example.com" });
+    const a = await signupAgent({ username: "agent-a" });
+    const b = await signupAgent({ username: "agent-b" });
 
     // A がエージェントを作成
     const created = await a.agent.post("/api/agents").send({ name: "リサーチ担当" });
@@ -32,8 +32,8 @@ describe("authorization", () => {
   });
 
   it("他ワークスペースのタグは削除できない（404）", async () => {
-    const a = await signupAgent({ email: "tag-a@example.com" });
-    const b = await signupAgent({ email: "tag-b@example.com" });
+    const a = await signupAgent({ username: "tag-a" });
+    const b = await signupAgent({ username: "tag-b" });
 
     const created = await a.agent.post("/api/tags").send({ name: "重要" });
     expect(created.status).toBe(201);
@@ -45,17 +45,17 @@ describe("authorization", () => {
   });
 
   it("MEMBER はタグを作成できない（403）", async () => {
-    const owner = await signupAgent({ email: "team-owner@example.com" });
-    const member = await signupAgent({ email: "team-member@example.com" });
+    const owner = await signupAgent({ username: "team-owner" });
+    const member = await signupAgent({ username: "team-member" });
 
     // owner のアクティブ WS の id を取得
     const me = await owner.agent.get("/api/auth/me");
     const wsId = me.body.activeWorkspace.id;
 
-    // owner が member をメールで追加（既定ロール MEMBER）
+    // owner が member をユーザーIDで追加（既定ロール MEMBER）
     const add = await owner.agent
       .post(`/api/workspaces/${wsId}/members`)
-      .send({ email: "team-member@example.com" });
+      .send({ username: "team-member" });
     expect(add.status).toBe(201);
     expect(add.body.member.role).toBe("MEMBER");
 

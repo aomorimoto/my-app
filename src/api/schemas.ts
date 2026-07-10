@@ -46,12 +46,19 @@ const recurrenceRuleField = z.preprocess(
     .optional()
 );
 
-// メールアドレス（signup/login と同じ前処理）
-const emailField = z
+// ユーザーID（username）。英小文字・数字・_ . - の 3〜30 文字。入力は小文字化して
+// 大文字小文字を区別しない（なりすまし/衝突防止）。signup / member 追加で使う。
+const usernameField = z
   .string()
   .trim()
   .toLowerCase()
-  .email("メールアドレスの形式が正しくありません。");
+  .regex(
+    /^[a-z0-9_.-]{3,30}$/,
+    "ユーザーIDは英小文字・数字・_ . - の3〜30文字で入力してください。"
+  );
+
+// ログイン用のユーザーID（形式ルールが将来変わっても弾かないよう検証は緩め）。
+const usernameLoginField = z.string().trim().toLowerCase().min(1, "ユーザーIDを入力してください。");
 
 // 説明: 空文字 → null。
 const descriptionField = z.preprocess(
@@ -62,13 +69,13 @@ const descriptionField = z.preprocess(
 // --- 認証 ---
 
 export const signupSchema = z.object({
-  email: z.string().trim().toLowerCase().email("メールアドレスの形式が正しくありません。"),
+  username: usernameField,
   password: z.string().min(8, "パスワードは8文字以上にしてください。"),
   name: z.string().trim().max(100).optional(),
 });
 
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email("メールアドレスの形式が正しくありません。"),
+  username: usernameLoginField,
   password: z.string().min(1, "パスワードを入力してください。"),
 });
 
@@ -177,7 +184,7 @@ export const workspaceDeleteSchema = z.object({
 });
 
 export const memberAddSchema = z.object({
-  email: emailField,
+  username: usernameField,
   role: assignableRoleEnum.optional(), // 既定は MEMBER
 });
 

@@ -96,7 +96,7 @@ export function useMembers(workspaceId: number | undefined) {
 export function useAddMember(workspaceId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { email: string; role?: Role }) => addMember(workspaceId, body),
+    mutationFn: (body: { username: string; role?: Role }) => addMember(workspaceId, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["members", workspaceId] });
       qc.invalidateQueries({ queryKey: ["workspaces"] }); // memberCount 変化

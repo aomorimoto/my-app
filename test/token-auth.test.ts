@@ -52,8 +52,8 @@ describe("Bearer トークン認証（OAuth アクセストークン）", () => 
   });
 
   it("別ユーザーのトークンでは他人のタスクは見えない（スコープ分離）", async () => {
-    const a = await signupAgent({ email: "a@example.com" });
-    const b = await signupAgent({ email: "b@example.com" });
+    const a = await signupAgent({ username: "user-a" });
+    const b = await signupAgent({ username: "user-b" });
     await a.agent.post("/api/tasks").send({ title: "Aのタスク" });
 
     const tokenB = await createToken(b.userId);

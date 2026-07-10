@@ -36,7 +36,7 @@ export const activateWorkspace = (id: number) =>
 export const fetchMembers = (workspaceId: number) =>
   apiFetch<{ members: Member[] }>(`/api/workspaces/${workspaceId}/members`);
 
-export const addMember = (workspaceId: number, body: { email: string; role?: Role }) =>
+export const addMember = (workspaceId: number, body: { username: string; role?: Role }) =>
   apiFetch<{ member: Member }>(`/api/workspaces/${workspaceId}/members`, {
     method: "POST",
     body,
