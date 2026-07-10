@@ -141,3 +141,58 @@ export const memberAddSchema = z.object({
 export const memberRoleSchema = z.object({
   role: assignableRoleEnum,
 });
+
+// --- プロフィール / 見た目カスタマイズ ---
+
+// #RRGGBB 形式の色（null 許容）。空文字は null（＝既定色に戻す）として扱う。
+const hexColorField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
+    .nullable()
+    .optional()
+);
+
+// アバター/アイコン画像（data URI）。null 許容（＝画像を外す）。
+// クライアントで 128px 前後に縮小して送る前提だが、念のためサイズ上限を設ける。
+const imageDataUriField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z
+    .string()
+    .max(1_500_000, "画像サイズが大きすぎます。")
+    .refine((s) => s.startsWith("data:image/"), "画像の形式が正しくありません。")
+    .nullable()
+    .optional()
+);
+
+// 状態/優先度/期限の表示色設定。すべて任意の #RRGGBB。null で「その項目を既定に戻す」。
+export const colorPrefsSchema = z
+  .object({
+    statusTodo: hexColorField,
+    statusInProgress: hexColorField,
+    statusDone: hexColorField,
+    prioHigh: hexColorField,
+    prioMedium: hexColorField,
+    prioLow: hexColorField,
+    due: hexColorField,
+  })
+  .partial();
+
+// 自分のプロフィール更新（送られた項目のみ更新）。
+export const userUpdateSchema = z.object({
+  name: z.preprocess(
+    (v) => (v === "" ? null : v),
+    z.string().trim().max(100).nullable().optional()
+  ),
+  avatarColor: hexColorField,
+  avatarImage: imageDataUriField,
+  colorPrefs: colorPrefsSchema.nullable().optional(),
+});
+
+// ワークスペースの更新（名前・アイコン）。送られた項目のみ更新。
+export const workspaceUpdateSchema = z.object({
+  name: z.string().trim().min(1, "ワークスペース名を入力してください。").max(50).optional(),
+  iconColor: hexColorField,
+  iconImage: imageDataUriField,
+});

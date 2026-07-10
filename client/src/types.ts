@@ -3,10 +3,24 @@ export type Priority = "HIGH" | "MEDIUM" | "LOW";
 
 export type Role = "OWNER" | "ADMIN" | "MEMBER";
 
+// 状態/優先度/期限の表示色の個人設定（未設定キーは既定色にフォールバック）
+export interface ColorPrefs {
+  statusTodo?: string;
+  statusInProgress?: string;
+  statusDone?: string;
+  prioHigh?: string;
+  prioMedium?: string;
+  prioLow?: string;
+  due?: string;
+}
+
 export interface User {
   id: number;
   email: string;
   name: string | null;
+  avatarColor?: string | null; // アバターの単色背景（未設定なら既定色）
+  avatarImage?: string | null; // アバター画像（data URI。あれば色より優先）
+  colorPrefs?: ColorPrefs | null;
 }
 
 // アクティブなワークスペース（/api/auth/me が返す）
@@ -14,6 +28,8 @@ export interface ActiveWorkspace {
   id: number;
   name: string;
   role: Role;
+  iconColor?: string | null;
+  iconImage?: string | null;
 }
 
 // 自分が所属するワークスペース（/api/workspaces の要素）
@@ -23,6 +39,8 @@ export interface Workspace {
   ownerId: number;
   role: Role;
   memberCount: number;
+  iconColor?: string | null;
+  iconImage?: string | null;
 }
 
 // ワークスペースのメンバー（/api/workspaces/:id/members の要素）
@@ -30,6 +48,8 @@ export interface Member {
   id: number; // userId
   email: string;
   name: string | null;
+  avatarColor?: string | null;
+  avatarImage?: string | null;
   role: Role;
   joinedAt: string;
 }
@@ -104,9 +124,11 @@ export interface Task {
   assigneeAgent?: Pick<Agent, "id" | "name" | "color"> | null;
   parentId: number | null; // 親タスク（サブタスク時に設定）
   // 集約ビュー（メイン画面のダッシュボード/カレンダー）でのみ付与。どのWSのタスクかを示す。
-  workspace?: { id: number; name: string };
+  workspace?: { id: number; name: string; iconColor?: string | null; iconImage?: string | null };
   tags?: Tag[]; // API が taskTags を平坦化して返す
   subtasks?: TaskNode[]; // 子タスクツリー（再帰）
+  // パンくず用の祖先チェーン（root → 直近の親）。GET /api/tasks/:id でのみ付与。
+  ancestors?: { id: number; title: string }[];
   _count?: { comments: number; subtasks?: number };
   createdAt: string;
   updatedAt: string;

@@ -9,8 +9,22 @@ import { authLimiter } from "../security/rateLimit";
 export const apiAuthRouter = Router();
 
 // クライアントに返すユーザー情報（パスワード等は含めない）
-function publicUser(user: { id: number; email: string; name: string | null }) {
-  return { id: user.id, email: user.email, name: user.name };
+function publicUser(user: {
+  id: number;
+  email: string;
+  name: string | null;
+  avatarColor?: string | null;
+  avatarImage?: string | null;
+  colorPrefs?: unknown;
+}) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    avatarColor: user.avatarColor ?? null,
+    avatarImage: user.avatarImage ?? null,
+    colorPrefs: (user.colorPrefs as Record<string, string> | null) ?? null,
+  };
 }
 
 // 現在ログイン中のユーザーと、アクティブなワークスペース。
@@ -21,20 +35,35 @@ apiAuthRouter.get("/me", async (req, res) => {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, name: true },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      avatarColor: true,
+      avatarImage: true,
+      colorPrefs: true,
+    },
   });
   if (!user) return res.json({ user: null, activeWorkspace: null });
 
-  // アクティブなワークスペースを解決して名前も返す（3b の切替 UI で再利用）
+  // アクティブなワークスペースを解決して名前・アイコンも返す（切替 UI／アイコン表示で再利用）
   const { workspaceId, role } = await resolveWorkspace(req);
   const ws = await prisma.workspace.findUnique({
     where: { id: workspaceId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, iconColor: true, iconImage: true },
   });
 
   res.json({
     user: publicUser(user),
-    activeWorkspace: ws ? { id: ws.id, name: ws.name, role } : null,
+    activeWorkspace: ws
+      ? {
+          id: ws.id,
+          name: ws.name,
+          role,
+          iconColor: ws.iconColor ?? null,
+          iconImage: ws.iconImage ?? null,
+        }
+      : null,
   });
 });
 

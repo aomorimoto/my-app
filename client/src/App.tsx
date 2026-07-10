@@ -5,6 +5,7 @@ import WorkspaceLayout from "./components/WorkspaceLayout";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
 import HomePage from "./pages/HomePage";
+import AccountPage from "./pages/AccountPage";
 import DashboardPage from "./pages/DashboardPage";
 import CalendarPage from "./pages/CalendarPage";
 import TasksPage from "./pages/TasksPage";
@@ -28,6 +29,9 @@ export default function App() {
       >
         {/* メイン画面: 集約ビュー（ダッシュボード/カレンダー） + ワークスペース一覧 */}
         <Route path="/" element={<HomePage />} />
+
+        {/* ユーザー設定（ワークスペースに依存しない全体設定: 名前・アバター・表示色） */}
+        <Route path="/account" element={<AccountPage />} />
 
         {/* ワークスペース内ページ（サブナビ付き: ダッシュボード/カレンダー/タスク/設定） */}
         <Route element={<WorkspaceLayout />}>

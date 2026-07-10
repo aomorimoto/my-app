@@ -123,9 +123,6 @@ export default function TasksPage() {
         <p className="empty">表示するタスクがありません。条件を変えるか、上のフォームから追加しましょう。</p>
       ) : (
         <>
-          {canReorder && (
-            <p className="muted reorder-hint">⠿ ドラッグでタスクを並べ替えできます。</p>
-          )}
           <ul className="task-list">
             {displayed.map((task, i) => (
               <TaskItem

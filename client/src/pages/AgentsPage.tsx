@@ -61,9 +61,6 @@ export default function AgentsPage() {
   return (
     <>
       <h2 className="section-title agents-heading">🤖 AI エージェント</h2>
-      <p className="muted">
-        登録した AI エージェントは、タスクの担当者に人間メンバーと同じように指定できます。
-      </p>
 
       <form className="form card category-form" onSubmit={onSubmit}>
         {error && <p className="error">{error}</p>}

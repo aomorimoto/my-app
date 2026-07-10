@@ -48,8 +48,9 @@ export function createApp() {
     app.use(morgan(isProd ? "combined" : "dev"));
   }
 
-  // JSON リクエストボディ（/api 用）
-  app.use(express.json());
+  // JSON リクエストボディ（/api 用）。アバター/アイコン画像を data URI で受け取るため
+  // 既定（100kb）より大きめに設定する（画像はクライアント側で 128px に縮小して送る）。
+  app.use(express.json({ limit: "2mb" }));
 
   // Cookie パース（csrf-csrf がダブルサブミット Cookie を読むために必要）
   app.use(cookieParser(SESSION_SECRET));

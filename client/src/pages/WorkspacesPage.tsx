@@ -54,11 +54,6 @@ export default function WorkspacesPage() {
     <>
       <h2 className="section-title">👤 メンバー</h2>
 
-      {active && (
-        <p className="muted">
-          現在: <strong>{active.name}</strong>（あなたの役割: {ROLE_LABEL[active.role]}）
-        </p>
-      )}
       {membersQ.isLoading ? (
         <p className="muted">読み込み中…</p>
       ) : (
@@ -138,10 +133,6 @@ export default function WorkspacesPage() {
           </button>
         </form>
       )}
-
-      <p className="muted">
-        新しいワークスペースの作成や切り替えは、上部の「← ホーム」から行えます。
-      </p>
     </>
   );
 }

@@ -10,6 +10,12 @@
   --high: #dc2626;
   --medium: #d97706;
   --low: #16a34a;
+  /* 状態バッジの色（ユーザー設定で ThemeVars が上書き。theme.ts の DEFAULT_COLORS と一致） */
+  --status-todo: #64748b;
+  --status-in_progress: #2563eb;
+  --status-done: #16a34a;
+  /* 期限（超過・締切）の色 */
+  --due: #dc2626;
   --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
 
@@ -312,10 +318,6 @@ details.card summary {
   outline: 2px dashed var(--primary);
   outline-offset: -2px;
 }
-.reorder-hint {
-  font-size: 0.8rem;
-  margin: 0 0 8px;
-}
 /* サブタスクの入れ子ツリー（一覧内） */
 .subtask-tree {
   list-style: none;
@@ -372,21 +374,34 @@ details.card summary {
 .badge.cat {
   color: #fff;
 }
+/* 状態バッジ（色は CSS 変数＝ユーザー設定で変更可）。淡い背景は color-mix で生成する。 */
+.badge.status-todo {
+  background: color-mix(in srgb, var(--status-todo) 16%, #fff);
+  color: var(--status-todo);
+}
+.badge.status-in_progress {
+  background: color-mix(in srgb, var(--status-in_progress) 16%, #fff);
+  color: var(--status-in_progress);
+}
+.badge.status-done {
+  background: color-mix(in srgb, var(--status-done) 16%, #fff);
+  color: var(--status-done);
+}
 .badge.prio-high {
-  background: #fee2e2;
+  background: color-mix(in srgb, var(--high) 16%, #fff);
   color: var(--high);
 }
 .badge.prio-medium {
-  background: #fef3c7;
+  background: color-mix(in srgb, var(--medium) 18%, #fff);
   color: var(--medium);
 }
 .badge.prio-low {
-  background: #dcfce7;
+  background: color-mix(in srgb, var(--low) 16%, #fff);
   color: var(--low);
 }
 .badge.due.overdue {
-  background: #fee2e2;
-  color: var(--danger);
+  background: color-mix(in srgb, var(--due) 16%, #fff);
+  color: var(--due);
   font-weight: 600;
 }
 .task-actions {
@@ -655,12 +670,6 @@ details.card summary {
 .cal-chip:hover {
   filter: brightness(0.96);
 }
-/* 集約カレンダーでチップに併記する所属ワークスペース名 */
-.cal-chip-ws {
-  font-size: 0.62rem;
-  color: var(--muted);
-  margin-right: 4px;
-}
 .cal-chip.prio-high {
   border-left-color: var(--high);
 }
@@ -671,8 +680,8 @@ details.card summary {
   border-left-color: var(--low);
 }
 .cal-chip.overdue {
-  background: #fee2e2;
-  color: var(--danger);
+  background: color-mix(in srgb, var(--due) 20%, #fff);
+  color: var(--due);
 }
 .cal-chip.done {
   color: var(--muted);
@@ -761,9 +770,22 @@ details.card summary {
 .subtask-form {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
+  align-items: flex-end;
 }
-.subtask-form input {
-  flex: 1;
+.subtask-form > input {
+  flex: 1 1 180px;
+}
+.subtask-field {
+  flex: 0 0 auto;
+}
+.subtask-field select {
+  font: inherit;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--text);
 }
 
 /* コメント */
@@ -935,6 +957,7 @@ details.card summary {
   padding: 9px 10px;
   font: inherit;
   color: var(--text);
+  text-decoration: none;
 }
 .account-menu-item:hover:not(:disabled) {
   background: #f1f5f9;
@@ -1011,6 +1034,9 @@ details.card summary {
 .badge.ws-tag {
   background: #ede9fe;
   color: #6d28d9;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 /* 集約ビューの読み取り専用タスク行（クリックで詳細へ。ボタンだが行として振る舞う） */
@@ -1021,7 +1047,7 @@ details.card summary {
   text-align: left;
   background: none;
   border: none;
-  padding: 0;
+  padding: 12px 16px;
   margin: 0;
   font: inherit;
   color: inherit;
@@ -1090,6 +1116,9 @@ details.card summary {
 }
 .ws-name {
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 .ws-meta {
   display: flex;
@@ -1109,7 +1138,8 @@ details.card summary {
 .ws-nav-head {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 8px 12px;
   margin-bottom: 10px;
 }
 .ws-nav-home {
@@ -1119,6 +1149,36 @@ details.card summary {
 }
 .ws-nav-title {
   font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+/* パンくず（タスク詳細にいるとき: ホーム › WS › 親 › … › 現在） */
+.ws-nav-crumb {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ws-nav-sep {
+  color: var(--muted);
+}
+.ws-nav-crumb-link {
+  text-decoration: none;
+  color: var(--primary);
+  font-size: 0.9rem;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ws-nav-crumb-current {
+  font-size: 0.9rem;
+  font-weight: 600;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ws-nav-tabs {
   display: flex;
@@ -1153,4 +1213,90 @@ details.card summary {
   align-items: center;
   justify-content: center;
   font-size: 0.7rem;
+}
+
+/* ===== アバター / ワークスペースアイコン（画像 or 単色背景＋頭文字） ===== */
+.avatar,
+.ws-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  vertical-align: middle;
+  overflow: hidden;
+}
+.avatar {
+  border-radius: 50%;
+}
+.ws-icon {
+  border-radius: 6px;
+}
+
+/* ===== ユーザー設定 / ワークスペース設定の編集 UI ===== */
+.avatar-edit {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+.avatar-controls {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.avatar-hint {
+  margin: 0;
+}
+.avatar-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.inline-color {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+.inline-color input[type="color"] {
+  width: 44px;
+  height: 32px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+/* 表示色の設定リスト */
+.color-pref-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.color-pref-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.color-pref-item input[type="color"] {
+  width: 40px;
+  height: 28px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  flex: 0 0 auto;
+}
+.color-pref-label {
+  flex: 1;
 }

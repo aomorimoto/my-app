@@ -99,6 +99,8 @@ export default function CalendarGrid({
                   {shown.map((t) => {
                     const done = t.status === "DONE";
                     const overdue = !done && new Date(t.dueDate!) < todayStart;
+                    // チップにはタスク名を表示する。所属ワークスペース名はツールチップに併記する
+                    // （集約カレンダーでも、まずどのタスクかが分かるようにするため）。
                     const ws = showWorkspace && t.workspace ? `${t.workspace.name} / ` : "";
                     return (
                       <button
@@ -110,9 +112,6 @@ export default function CalendarGrid({
                         }`}
                         title={`${t.title}（${ws}優先度: ${PRIORITY_LABEL[t.priority]}）`}
                       >
-                        {showWorkspace && t.workspace && (
-                          <span className="cal-chip-ws">{t.workspace.name}</span>
-                        )}
                         {t.title}
                       </button>
                     );

@@ -1,20 +1,22 @@
 import { useState } from "react";
+import WorkspaceGeneralPage from "./WorkspaceGeneralPage";
 import WorkspacesPage from "./WorkspacesPage";
 import TagsPage from "./TagsPage";
 import AgentsPage from "./AgentsPage";
 
-// ワークスペース画面の設定タブ。ユーザー（メンバー＋AIエージェント）/ タグの管理を
-// 1画面に集約し、内部のセグメントで切り替える（各セクションは既存ページを再利用）。
+// ワークスペース画面の設定タブ。ワークスペース（名前・アイコン）/ ユーザー（メンバー＋
+// AIエージェント）/ タグの管理を1画面に集約し、内部のセグメントで切り替える。
 // AI エージェントは「担当者になれるユーザー」の一種として、ユーザータブに含める。
-type Section = "users" | "tags";
+type Section = "workspace" | "users" | "tags";
 
 const SECTIONS: { key: Section; label: string }[] = [
+  { key: "workspace", label: "ワークスペース" },
   { key: "users", label: "ユーザー" },
   { key: "tags", label: "タグ" },
 ];
 
 export default function SettingsPage() {
-  const [section, setSection] = useState<Section>("users");
+  const [section, setSection] = useState<Section>("workspace");
 
   return (
     <>
@@ -33,6 +35,7 @@ export default function SettingsPage() {
         ))}
       </div>
 
+      {section === "workspace" && <WorkspaceGeneralPage />}
       {section === "users" && (
         <>
           {/* 人間メンバーと AI エージェントを1つの「ユーザー」タブにまとめて表示する */}

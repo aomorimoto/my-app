@@ -3,6 +3,7 @@ import { prisma } from "../db";
 import { requireMembership, requireRole } from "../domain/workspace";
 import {
   workspaceCreateSchema,
+  workspaceUpdateSchema,
   workspaceReorderSchema,
   memberAddSchema,
   memberRoleSchema,
@@ -24,6 +25,8 @@ async function listWorkspaces(userId: number) {
           id: true,
           name: true,
           ownerId: true,
+          iconColor: true,
+          iconImage: true,
           _count: { select: { members: true } },
         },
       },
@@ -33,21 +36,40 @@ async function listWorkspaces(userId: number) {
     id: m.workspace.id,
     name: m.workspace.name,
     ownerId: m.workspace.ownerId,
+    iconColor: m.workspace.iconColor,
+    iconImage: m.workspace.iconImage,
     role: m.role,
     memberCount: m.workspace._count.members,
   }));
 }
 
+// メンバー一覧で取得するユーザー select（アバター表示用の色/画像も含める）
+const memberUserSelect = {
+  id: true,
+  email: true,
+  name: true,
+  avatarColor: true,
+  avatarImage: true,
+} as const;
+
 // メンバー情報を API 表現に整える（user + role を平坦化）
 function toMember(m: {
   role: string;
   joinedAt: Date;
-  user: { id: number; email: string; name: string | null };
+  user: {
+    id: number;
+    email: string;
+    name: string | null;
+    avatarColor?: string | null;
+    avatarImage?: string | null;
+  };
 }) {
   return {
     id: m.user.id,
     email: m.user.email,
     name: m.user.name,
+    avatarColor: m.user.avatarColor ?? null,
+    avatarImage: m.user.avatarImage ?? null,
     role: m.role,
     joinedAt: m.joinedAt,
   };
@@ -73,11 +95,49 @@ apiWorkspacesRouter.post("/", async (req, res) => {
       ownerId: userId,
       members: { create: { userId, role: "OWNER", position } },
     },
-    select: { id: true, name: true, ownerId: true },
+    select: { id: true, name: true, ownerId: true, iconColor: true, iconImage: true },
   });
 
   res.status(201).json({
     workspace: { ...workspace, role: "OWNER", memberCount: 1 },
+  });
+});
+
+// ワークスペースの更新（名前・アイコン）。OWNER / ADMIN のみ。
+apiWorkspacesRouter.patch("/:id", async (req, res) => {
+  const userId = req.userId!;
+  const id = parseId(req.params.id);
+  const role = await requireMembership(userId, id);
+  requireRole(role, ["OWNER", "ADMIN"]);
+  const input = workspaceUpdateSchema.parse(req.body);
+
+  const data: Record<string, unknown> = {};
+  if (input.name !== undefined) data.name = input.name;
+  if (input.iconColor !== undefined) data.iconColor = input.iconColor;
+  if (input.iconImage !== undefined) data.iconImage = input.iconImage;
+
+  const workspace = await prisma.workspace.update({
+    where: { id },
+    data,
+    select: {
+      id: true,
+      name: true,
+      ownerId: true,
+      iconColor: true,
+      iconImage: true,
+      _count: { select: { members: true } },
+    },
+  });
+  res.json({
+    workspace: {
+      id: workspace.id,
+      name: workspace.name,
+      ownerId: workspace.ownerId,
+      iconColor: workspace.iconColor,
+      iconImage: workspace.iconImage,
+      role,
+      memberCount: workspace._count.members,
+    },
   });
 });
 
@@ -109,9 +169,13 @@ apiWorkspacesRouter.post("/:id/activate", async (req, res) => {
   req.session.workspaceId = id;
   const ws = await prisma.workspace.findUnique({
     where: { id },
-    select: { id: true, name: true },
+    select: { id: true, name: true, iconColor: true, iconImage: true },
   });
-  res.json({ activeWorkspace: ws ? { id: ws.id, name: ws.name, role } : null });
+  res.json({
+    activeWorkspace: ws
+      ? { id: ws.id, name: ws.name, role, iconColor: ws.iconColor, iconImage: ws.iconImage }
+      : null,
+  });
 });
 
 // メンバー一覧（メンバーなら誰でも閲覧可）
@@ -126,7 +190,7 @@ apiWorkspacesRouter.get("/:id/members", async (req, res) => {
     select: {
       role: true,
       joinedAt: true,
-      user: { select: { id: true, email: true, name: true } },
+      user: { select: memberUserSelect },
     },
   });
   res.json({ members: members.map(toMember) });
@@ -142,7 +206,7 @@ apiWorkspacesRouter.post("/:id/members", async (req, res) => {
 
   const target = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true },
+    select: memberUserSelect,
   });
   if (!target) {
     throw new HttpError(404, "そのメールアドレスのユーザーが見つかりません。", "USER_NOT_FOUND");
@@ -184,7 +248,7 @@ apiWorkspacesRouter.patch("/:id/members/:userId", async (req, res) => {
     select: {
       role: true,
       joinedAt: true,
-      user: { select: { id: true, email: true, name: true } },
+      user: { select: memberUserSelect },
     },
   });
   res.json({ member: toMember(updated) });

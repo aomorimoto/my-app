@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useMe, useLogout } from "../queries/auth";
 import { memberLabel } from "../labels";
+import UserAvatar from "./UserAvatar";
 
 // グローバルなトップバー。表示はアプリ名とアカウントのみ。
 // アカウント名をクリックするとドロップダウン（設定・ログアウト）が開く。
@@ -51,7 +52,7 @@ export default function Header() {
             aria-haspopup="menu"
             aria-expanded={open}
           >
-            <span className="account-avatar">{(memberLabel(user)[0] || "?").toUpperCase()}</span>
+            <UserAvatar user={user} size={28} />
             <span className="account-name">{memberLabel(user)}</span>
             <span className="account-caret">▾</span>
           </button>
@@ -62,9 +63,14 @@ export default function Header() {
                 <div className="account-menu-name">{user.name || "（名前未設定）"}</div>
                 <div className="account-menu-email muted">{user.email}</div>
               </div>
-              <button type="button" className="account-menu-item" role="menuitem" disabled>
-                ⚙️ 設定（近日）
-              </button>
+              <Link
+                to="/account"
+                className="account-menu-item"
+                role="menuitem"
+                onClick={() => setOpen(false)}
+              >
+                ⚙️ ユーザー設定
+              </Link>
               <button
                 type="button"
                 className="account-menu-item danger"

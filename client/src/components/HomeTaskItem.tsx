@@ -1,5 +1,6 @@
 import type { Task } from "../types";
-import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel } from "../labels";
+import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel, statusClass } from "../labels";
+import WorkspaceIcon from "./WorkspaceIcon";
 
 // 集約ビュー（メイン画面）用の読み取り専用タスク行。
 // タスクは複数ワークスペースにまたがるため、TaskItem の完了/削除（アクティブWS限定）は使わず、
@@ -20,8 +21,15 @@ export default function HomeTaskItem({
         <div className="task-main">
           <div className="task-title">{task.title}</div>
           <div className="task-meta">
-            {task.workspace && <span className="badge ws-tag">🗂 {task.workspace.name}</span>}
-            <span className="badge status">{STATUS_LABEL[task.status]}</span>
+            {task.workspace && (
+              <span className="badge ws-tag">
+                <WorkspaceIcon workspace={task.workspace} size={14} />
+                {task.workspace.name}
+              </span>
+            )}
+            <span className={`badge status ${statusClass(task.status)}`}>
+              {STATUS_LABEL[task.status]}
+            </span>
             <span className={`badge prio prio-${task.priority.toLowerCase()}`}>
               優先度: {PRIORITY_LABEL[task.priority]}
             </span>

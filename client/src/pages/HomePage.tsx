@@ -12,6 +12,7 @@ import { useDragList } from "../hooks/useDragList";
 import { ROLE_LABEL } from "../labels";
 import DashboardPanel from "../components/DashboardPanel";
 import CalendarGrid from "../components/CalendarGrid";
+import WorkspaceIcon from "../components/WorkspaceIcon";
 import type { Workspace } from "../types";
 
 // D&D 同期用の安定した空配列（参照固定で useDragList の再同期ループを防ぐ）。
@@ -93,9 +94,6 @@ export default function HomePage() {
           <p className="muted">読み込み中…</p>
         ) : (
           <>
-            {workspaces.length > 1 && (
-              <p className="muted reorder-hint">⠿ ドラッグで並べ替えできます。</p>
-            )}
             <ul className="ws-list">
               {drag.items.map((w, i) => (
                 <li
@@ -111,7 +109,10 @@ export default function HomePage() {
                     ⠿
                   </span>
                   <button type="button" className="ws-open" onClick={() => openWs(w.id)}>
-                    <span className="ws-name">🗂 {w.name}</span>
+                    <span className="ws-name">
+                      <WorkspaceIcon workspace={w} size={22} />
+                      {w.name}
+                    </span>
                     <span className="ws-meta">
                       <span className="badge role">{ROLE_LABEL[w.role]}</span>
                       <span className="muted">👥 {w.memberCount}</span>

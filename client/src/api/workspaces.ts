@@ -7,6 +7,16 @@ export const fetchWorkspaces = () =>
 export const createWorkspace = (body: { name: string }) =>
   apiFetch<{ workspace: Workspace }>("/api/workspaces", { method: "POST", body });
 
+// ワークスペースの名前・アイコンを更新（OWNER/ADMIN）。送る項目のみ更新。
+export interface UpdateWorkspaceInput {
+  name?: string;
+  iconColor?: string | null;
+  iconImage?: string | null;
+}
+
+export const updateWorkspace = (id: number, body: UpdateWorkspaceInput) =>
+  apiFetch<{ workspace: Workspace }>(`/api/workspaces/${id}`, { method: "PATCH", body });
+
 // メイン画面の並べ替え結果を保存する（表示順に並んだ workspaceId の配列）
 export const reorderWorkspaces = (order: number[]) =>
   apiFetch<{ workspaces: Workspace[] }>("/api/workspaces/reorder", {

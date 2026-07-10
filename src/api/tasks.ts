@@ -140,6 +140,29 @@ async function assertParentValid(workspaceId: number, parentId: number, selfId?:
   }
 }
 
+// 祖先チェーン（root → 直近の親）を返す。パンくず表示用。
+// parentId を辿るだけの軽量クエリ（多階層でも通常は数段）。循環は seen で防御。
+async function buildAncestors(
+  workspaceId: number,
+  parentId: number | null
+): Promise<{ id: number; title: string }[]> {
+  const chain: { id: number; title: string }[] = [];
+  const seen = new Set<number>();
+  let cursor: number | null = parentId;
+  while (cursor != null && !seen.has(cursor)) {
+    seen.add(cursor);
+    const p: { id: number; title: string; parentId: number | null } | null =
+      await prisma.task.findFirst({
+        where: { id: cursor, workspaceId },
+        select: { id: true, title: true, parentId: true },
+      });
+    if (!p) break;
+    chain.push({ id: p.id, title: p.title });
+    cursor = p.parentId;
+  }
+  return chain.reverse();
+}
+
 // 1ページあたりの件数（ページネーション有効時）
 const PAGE_SIZE = 20;
 
@@ -298,7 +321,9 @@ apiTasksRouter.get("/:id", async (req, res) => {
     include: taskInclude,
   });
   if (!task) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
-  res.json({ task: shapeTask(task) });
+  // パンくず用に祖先チェーン（root → 親）を併せて返す。
+  const ancestors = await buildAncestors(workspaceId, task.parentId);
+  res.json({ task: { ...shapeTask(task), ancestors } });
 });
 
 // タスク更新（PATCH：送られてきた項目のみ更新）

@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import type { DragEvent } from "react";
 import type { TaskNode } from "../types";
-import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel } from "../labels";
+import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel, statusClass } from "../labels";
 import { useToggleTask } from "../queries/tasks";
 
 // トップレベル行の D&D 用ハンドラ（サブタスク行には渡さない）。
@@ -85,7 +85,9 @@ export default function TaskItem({
           <div className="task-title">{task.title}</div>
           {task.description && <div className="task-desc">{task.description}</div>}
           <div className="task-meta">
-            <span className="badge status">{STATUS_LABEL[task.status]}</span>
+            <span className={`badge status ${statusClass(task.status)}`}>
+              {STATUS_LABEL[task.status]}
+            </span>
             <span className={`badge prio prio-${task.priority.toLowerCase()}`}>
               優先度: {PRIORITY_LABEL[task.priority]}
             </span>

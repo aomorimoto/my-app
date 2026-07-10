@@ -1,12 +1,5 @@
 import { useEffect, useRef, useState, type DragEvent } from "react";
 
-// 2つのリストが同じ id 並びかを判定する（無駄な再同期・再レンダーを避けるため）。
-function sameIds<T extends { id: number }>(a: T[], b: T[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) if (a[i].id !== b[i].id) return false;
-  return true;
-}
-
 // ネイティブ HTML5 D&D で並べ替えできるリストを扱う小さなフック。
 // - source（取得データ）が変わったら内部順序を同期する（ドラッグ中は保留）。
 // - ドロップ時に新しい id 配列で onReorder を呼ぶ（サーバ保存は呼び出し側で）。
@@ -19,10 +12,14 @@ export function useDragList<T extends { id: number }>(
   const dragIndex = useRef<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
 
-  // 取得データの変化を内部順序へ反映（id 並びが同じなら据え置き＝無限ループ防止）。
+  // 取得データが更新されたら内部状態へ同期する（ドラッグ操作中は保留）。
+  // source は React Query の構造共有により、データが変わったときだけ参照が変わる
+  // （＝この effect も再実行される）ので、無限ループにはならない。
+  // 以前は「id 並びが同じなら据え置き」にしていたが、それだと完了トグルなど
+  // 「並びは同じでも中身（status 等）が変わった」更新が反映されず、リロードが必要だった。
   useEffect(() => {
     if (dragIndex.current != null) return; // ドラッグ操作中は同期しない
-    setItems((prev) => (sameIds(prev, source) ? prev : source));
+    setItems(source);
   }, [source]);
 
   const onDragStart = (index: number) => (e: DragEvent) => {

@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   fetchWorkspaces,
   createWorkspace,
+  updateWorkspace,
   reorderWorkspaces,
   activateWorkspace,
   fetchMembers,
   addMember,
   updateMemberRole,
   removeMember,
+  type UpdateWorkspaceInput,
 } from "../api/workspaces";
 import type { Role, Workspace } from "../types";
 
@@ -20,6 +22,19 @@ export function useCreateWorkspace() {
   return useMutation({
     mutationFn: createWorkspace,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["workspaces"] }),
+  });
+}
+
+// ワークスペースの名前・アイコン更新。一覧とアクティブWS表示（me）を再取得する。
+export function useUpdateWorkspace(id: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: UpdateWorkspaceInput) => updateWorkspace(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["workspaces"] });
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["home"] }); // 集約ビューのWSバッジにも反映
+    },
   });
 }
 

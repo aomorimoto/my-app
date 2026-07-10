@@ -11,7 +11,7 @@ const homeTaskInclude = {
   assignee: { select: { id: true, email: true, name: true } },
   assigneeAgent: { select: { id: true, name: true, color: true } },
   taskTags: { include: { tag: true } },
-  workspace: { select: { id: true, name: true } },
+  workspace: { select: { id: true, name: true, iconColor: true, iconImage: true } },
 } as const;
 
 // taskTags（中間テーブル）を tags: Tag[] に平坦化する（tasks.ts / dashboard.ts と同方針）。

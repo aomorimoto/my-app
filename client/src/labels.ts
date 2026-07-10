@@ -41,6 +41,11 @@ export const STATUS_LABEL: Record<Status, string> = {
   DONE: "完了",
 };
 
+// 状態バッジの色分けクラス（styles.css の .badge.status-* と対応。色は CSS 変数で個人設定可）。
+export function statusClass(s: Status): string {
+  return `status-${s.toLowerCase()}`; // status-todo / status-in_progress / status-done
+}
+
 export const PRIORITY_LABEL: Record<Priority, string> = {
   HIGH: "高",
   MEDIUM: "中",

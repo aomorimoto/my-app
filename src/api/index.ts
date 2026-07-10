@@ -3,6 +3,7 @@ import { authenticate, requireAuthApi } from "../middleware";
 import { doubleCsrfProtection, generateCsrfToken } from "../security/csrf";
 import { apiHealthRouter } from "./health";
 import { apiAuthRouter } from "./auth";
+import { apiUsersRouter } from "./users";
 import { apiTasksRouter } from "./tasks";
 import { apiAgentsRouter } from "./agents";
 import { apiTagsRouter } from "./tags";
@@ -37,6 +38,7 @@ apiRouter.use((req, res, next) =>
 );
 
 // タスク・エージェント・ワークスペースはログイン必須（未ログインは JSON で 401）
+apiRouter.use("/users", requireAuthApi, apiUsersRouter);
 apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);
 apiRouter.use("/agents", requireAuthApi, apiAgentsRouter);
 apiRouter.use("/tags", requireAuthApi, apiTagsRouter);

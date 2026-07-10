@@ -16,6 +16,9 @@ model User {
   email           String       @unique
   password        String // bcrypt でハッシュ化したパスワード
   name            String?
+  avatarColor     String? // アバターの単色背景（#RRGGBB）。未設定なら既定色をアプリ側で決める
+  avatarImage     String? // アップロードしたアバター画像（data URI。未設定なら色+頭文字を表示）
+  colorPrefs      Json? // 状態/優先度/期限の表示色の個人設定（キー→#RRGGBB）。未設定は既定色
   createdAt       DateTime     @default(now())
   memberships     Membership[] // 所属するワークスペース
   ownedWorkspaces Workspace[]  @relation("WorkspaceOwner")
@@ -34,6 +37,8 @@ model User {
 model Workspace {
   id         Int          @id @default(autoincrement())
   name       String
+  iconColor  String? // ワークスペースアイコンの単色背景（#RRGGBB）。未設定は既定色
+  iconImage  String? // アップロードしたアイコン画像（data URI。未設定は色+頭文字を表示）
   ownerId    Int
   owner      User         @relation("WorkspaceOwner", fields: [ownerId], references: [id])
   createdAt  DateTime     @default(now())

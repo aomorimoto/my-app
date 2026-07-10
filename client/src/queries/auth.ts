@@ -1,9 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchMe, login, signup, logout } from "../api/auth";
+import { fetchMe, login, signup, logout, updateMe, type MeResponse } from "../api/auth";
 
 // 現在ログイン中のユーザー（{ user: User | null }）
 export function useMe() {
   return useQuery({ queryKey: ["me"], queryFn: fetchMe });
+}
+
+// プロフィール更新。成功時は me キャッシュのユーザー部分を差し替える（アバター/色を即時反映）。
+export function useUpdateMe() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: updateMe,
+    onSuccess: (data) => {
+      qc.setQueryData<MeResponse>(["me"], (prev) =>
+        prev ? { ...prev, user: data.user } : prev
+      );
+    },
+  });
 }
 
 export function useLogin() {
