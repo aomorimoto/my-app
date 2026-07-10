@@ -8,7 +8,7 @@ import AgentsPage from "./AgentsPage";
 // AI エージェント / タグの管理を1画面に集約し、左の項目一覧から各セクションへ飛べる。
 // AI エージェントは「担当者になれるユーザー」の一種として扱う。
 const SECTIONS: SettingsSection[] = [
-  { id: "workspace", label: "ワークスペース", content: <WorkspaceGeneralPage /> },
+  { id: "workspace", label: "一般", content: <WorkspaceGeneralPage /> },
   { id: "members", label: "メンバー", content: <WorkspacesPage /> },
   { id: "agents", label: "AI エージェント", content: <AgentsPage /> },
   { id: "tags", label: "タグ", content: <TagsPage /> },

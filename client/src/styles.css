@@ -487,6 +487,7 @@ details.card summary {
 .category-item {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 0;
 }
@@ -514,6 +515,9 @@ details.card summary {
 
 /* 担当者バッジ */
 .badge.assignee {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   background: #e0e7ff;
   color: #3730a3;
 }
@@ -1291,7 +1295,8 @@ details.card summary {
 
 /* AI エージェント担当者バッジ（色は inline 指定） */
 .badge.assignee.agent {
-  color: #fff;
+  background: #ede9fe;
+  color: #6d28d9;
 }
 /* エージェント一覧のアイコン付きスウォッチ */
 .category-item .swatch {
@@ -1301,9 +1306,10 @@ details.card summary {
   font-size: 0.7rem;
 }
 
-/* ===== アバター / ワークスペースアイコン（画像 or 単色背景＋頭文字） ===== */
+/* ===== アバター / ワークスペースアイコン / エージェントアイコン（画像 or 単色背景＋文字） ===== */
 .avatar,
-.ws-icon {
+.ws-icon,
+.agent-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1317,7 +1323,8 @@ details.card summary {
   vertical-align: middle;
   overflow: hidden;
 }
-.avatar {
+.avatar,
+.agent-icon {
   border-radius: 50%;
 }
 .ws-icon {

@@ -11,6 +11,7 @@ function toAgent(a: {
   id: number;
   name: string;
   color: string;
+  iconImage: string | null;
   workspaceId: number;
   ownerId: number | null;
   owner?: { id: number; email: string; name: string | null } | null;
@@ -20,6 +21,7 @@ function toAgent(a: {
     id: a.id,
     name: a.name,
     color: a.color,
+    iconImage: a.iconImage ?? null,
     workspaceId: a.workspaceId,
     ownerId: a.ownerId,
     owner: a.owner ?? null,
@@ -46,10 +48,10 @@ apiAgentsRouter.get("/", async (req, res) => {
 apiAgentsRouter.post("/", async (req, res) => {
   const { workspaceId } = await resolveWorkspace(req);
   const userId = req.userId!;
-  const { name, color } = agentCreateSchema.parse(req.body);
+  const { name, color, iconImage } = agentCreateSchema.parse(req.body);
   try {
     const agent = await prisma.agent.create({
-      data: { name, color: color ?? "#6b7280", workspaceId, ownerId: userId },
+      data: { name, color: color ?? "#6b7280", iconImage: iconImage ?? null, workspaceId, ownerId: userId },
       include: { owner: { select: { id: true, email: true, name: true } } },
     });
     res.status(201).json({ agent: toAgent(agent) });
@@ -76,6 +78,7 @@ apiAgentsRouter.patch("/:id", async (req, res) => {
   const data: any = {};
   if (input.name !== undefined) data.name = input.name;
   if (input.color !== undefined) data.color = input.color;
+  if (input.iconImage !== undefined) data.iconImage = input.iconImage;
 
   try {
     const agent = await prisma.agent.update({

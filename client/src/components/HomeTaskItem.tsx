@@ -1,6 +1,8 @@
 import type { Task } from "../types";
 import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel, statusClass } from "../labels";
 import WorkspaceIcon from "./WorkspaceIcon";
+import UserAvatar from "./UserAvatar";
+import AgentIcon from "./AgentIcon";
 
 // 集約ビュー（メイン画面）用の読み取り専用タスク行。
 // タスクは複数ワークスペースにまたがるため、TaskItem の完了/削除（アクティブWS限定）は使わず、
@@ -34,11 +36,15 @@ export default function HomeTaskItem({
               優先度: {PRIORITY_LABEL[task.priority]}
             </span>
             {task.assignee && (
-              <span className="badge assignee">👤 {memberLabel(task.assignee)}</span>
+              <span className="badge assignee">
+                <UserAvatar user={task.assignee} size={16} />
+                {memberLabel(task.assignee)}
+              </span>
             )}
             {task.assigneeAgent && (
-              <span className="badge assignee agent" style={{ background: task.assigneeAgent.color }}>
-                🤖 {task.assigneeAgent.name}
+              <span className="badge assignee agent">
+                <AgentIcon agent={task.assigneeAgent} size={16} />
+                {task.assigneeAgent.name}
               </span>
             )}
             {task.dueDate && (

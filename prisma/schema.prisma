@@ -67,7 +67,8 @@ model Membership {
 model Agent {
   id            Int       @id @default(autoincrement())
   name          String
-  color         String    @default("#6b7280") // UI 表示用の色（HEX）
+  color         String    @default("#6b7280") // UI 表示用の色（HEX）。画像未設定時の背景色
+  iconImage     String? // アップロードしたアイコン画像（data URI。未設定は色＋🤖 を表示）
   workspaceId   Int
   workspace     Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   ownerId       Int? // このエージェントを主に使うユーザー（任意。表示用）

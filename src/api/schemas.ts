@@ -84,6 +84,30 @@ export const taskReorderSchema = z.object({
   order: z.array(z.coerce.number().int().positive()).min(1),
 });
 
+// --- 見た目（色・画像）共通フィールド ---
+
+// #RRGGBB 形式の色（null 許容）。空文字は null（＝既定色に戻す）として扱う。
+const hexColorField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
+    .nullable()
+    .optional()
+);
+
+// アバター/アイコン画像（data URI）。null 許容（＝画像を外す）。
+// クライアントで 128px 前後に縮小して送る前提だが、念のためサイズ上限を設ける。
+const imageDataUriField = z.preprocess(
+  (v) => (v === "" ? null : v),
+  z
+    .string()
+    .max(1_500_000, "画像サイズが大きすぎます。")
+    .refine((s) => s.startsWith("data:image/"), "画像の形式が正しくありません。")
+    .nullable()
+    .optional()
+);
+
 // --- AI エージェント ---
 
 export const agentCreateSchema = z.object({
@@ -92,6 +116,7 @@ export const agentCreateSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
     .optional(),
+  iconImage: imageDataUriField,
 });
 
 // PATCH 用: 送られてきた項目だけ更新する。
@@ -143,28 +168,6 @@ export const memberRoleSchema = z.object({
 });
 
 // --- プロフィール / 見た目カスタマイズ ---
-
-// #RRGGBB 形式の色（null 許容）。空文字は null（＝既定色に戻す）として扱う。
-const hexColorField = z.preprocess(
-  (v) => (v === "" ? null : v),
-  z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "色は #RRGGBB 形式で指定してください。")
-    .nullable()
-    .optional()
-);
-
-// アバター/アイコン画像（data URI）。null 許容（＝画像を外す）。
-// クライアントで 128px 前後に縮小して送る前提だが、念のためサイズ上限を設ける。
-const imageDataUriField = z.preprocess(
-  (v) => (v === "" ? null : v),
-  z
-    .string()
-    .max(1_500_000, "画像サイズが大きすぎます。")
-    .refine((s) => s.startsWith("data:image/"), "画像の形式が正しくありません。")
-    .nullable()
-    .optional()
-);
 
 // 状態/優先度/期限の表示色設定。すべて任意の #RRGGBB。null で「その項目を既定に戻す」。
 export const colorPrefsSchema = z

@@ -3,6 +3,8 @@ import type { DragEvent } from "react";
 import type { TaskNode } from "../types";
 import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel, statusClass } from "../labels";
 import { useToggleTask } from "../queries/tasks";
+import UserAvatar from "./UserAvatar";
+import AgentIcon from "./AgentIcon";
 
 // トップレベル行の D&D 用ハンドラ（サブタスク行には渡さない）。
 export interface TaskDnd {
@@ -92,14 +94,15 @@ export default function TaskItem({
               優先度: {PRIORITY_LABEL[task.priority]}
             </span>
             {task.assignee && (
-              <span className="badge assignee">👤 {memberLabel(task.assignee)}</span>
+              <span className="badge assignee">
+                <UserAvatar user={task.assignee} size={16} />
+                {memberLabel(task.assignee)}
+              </span>
             )}
             {task.assigneeAgent && (
-              <span
-                className="badge assignee agent"
-                style={{ background: task.assigneeAgent.color }}
-              >
-                🤖 {task.assigneeAgent.name}
+              <span className="badge assignee agent">
+                <AgentIcon agent={task.assigneeAgent} size={16} />
+                {task.assigneeAgent.name}
               </span>
             )}
             {task.tags?.map((t) => (

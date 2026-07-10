@@ -1,6 +1,9 @@
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useAgents, useCreateAgent, useUpdateAgent, useDeleteAgent } from "../queries/agents";
 import { memberLabel } from "../labels";
+import { fileToSquareDataUrl } from "../lib/image";
+import AgentIcon from "../components/AgentIcon";
+import type { Agent } from "../types";
 
 // AI エージェント管理（ワークスペースごと）。ここで登録したエージェントを
 // タスクの「担当者」に指定できる。1人のユーザーが複数のエージェントを持てる。
@@ -17,6 +20,8 @@ export default function AgentsPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
   const [editColor, setEditColor] = useState("#6b7280");
+  const [editImage, setEditImage] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const agents = agentsQ.data?.agents ?? [];
 
@@ -35,21 +40,36 @@ export default function AgentsPage() {
     );
   };
 
-  const startEdit = (id: number, curName: string, curColor: string) => {
-    setEditingId(id);
-    setEditName(curName);
-    setEditColor(curColor);
+  const startEdit = (a: Agent) => {
+    setEditingId(a.id);
+    setEditName(a.name);
+    setEditColor(a.color);
+    setEditImage(a.iconImage ?? null);
     setError(null);
   };
 
   const onSaveEdit = (id: number) => {
     update.mutate(
-      { id, name: editName, color: editColor },
+      { id, name: editName, color: editColor, iconImage: editImage },
       {
         onSuccess: () => setEditingId(null),
         onError: (err) => setError(err.message || "更新に失敗しました。"),
       }
     );
+  };
+
+  // 編集中エージェントのアイコン画像を選択 → 正方形に縮小して data URI 化。
+  const onPickEditImage = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setEditImage(await fileToSquareDataUrl(file));
+      setError(null);
+    } catch (err) {
+      setError((err as Error)?.message || "画像の読み込みに失敗しました。");
+    } finally {
+      if (fileRef.current) fileRef.current.value = ""; // 同じファイルを選び直せるように
+    }
   };
 
   const onDelete = (id: number, label: string) => {
@@ -93,6 +113,10 @@ export default function AgentsPage() {
             <li key={a.id} className="category-item card">
               {editingId === a.id ? (
                 <>
+                  <AgentIcon
+                    agent={{ name: editName, color: editColor, iconImage: editImage }}
+                    size={28}
+                  />
                   <input
                     type="color"
                     value={editColor}
@@ -107,6 +131,23 @@ export default function AgentsPage() {
                   <button
                     type="button"
                     className="btn-small"
+                    onClick={() => fileRef.current?.click()}
+                  >
+                    画像
+                  </button>
+                  {editImage && (
+                    <button
+                      type="button"
+                      className="btn-small"
+                      onClick={() => setEditImage(null)}
+                    >
+                      画像を外す
+                    </button>
+                  )}
+                  <input ref={fileRef} type="file" accept="image/*" onChange={onPickEditImage} hidden />
+                  <button
+                    type="button"
+                    className="btn-small"
                     onClick={() => onSaveEdit(a.id)}
                     disabled={update.isPending}
                   >
@@ -118,9 +159,7 @@ export default function AgentsPage() {
                 </>
               ) : (
                 <>
-                  <span className="swatch" style={{ background: a.color }}>
-                    🤖
-                  </span>
+                  <AgentIcon agent={a} size={22} />
                   <span className="category-name">{a.name}</span>
                   {a.owner && (
                     <span className="muted">使用者: {memberLabel(a.owner)}</span>
@@ -129,7 +168,7 @@ export default function AgentsPage() {
                   <button
                     type="button"
                     className="btn-small"
-                    onClick={() => startEdit(a.id, a.name, a.color)}
+                    onClick={() => startEdit(a)}
                   >
                     編集
                   </button>

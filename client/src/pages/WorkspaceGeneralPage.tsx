@@ -66,7 +66,7 @@ export default function WorkspaceGeneralPage() {
 
   return (
     <>
-      <h2 className="section-title">ワークスペース</h2>
+      <h2 className="section-title">一般</h2>
       {msg && <p className="muted">{msg}</p>}
       {error && <p className="error">{error}</p>}
 

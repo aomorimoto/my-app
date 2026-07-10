@@ -7,8 +7,8 @@ export const apiDashboardRouter = Router();
 // ダッシュボードで使うタスクの include（一覧カードと同等の軽量版。
 // サブタスク/コメント件数は集計・表示に不要なので含めない）。
 const dashboardInclude = {
-  assignee: { select: { id: true, email: true, name: true } },
-  assigneeAgent: { select: { id: true, name: true, color: true } },
+  assignee: { select: { id: true, email: true, name: true, avatarColor: true, avatarImage: true } },
+  assigneeAgent: { select: { id: true, name: true, color: true, iconImage: true } },
   taskTags: { include: { tag: true } },
 } as const;
 

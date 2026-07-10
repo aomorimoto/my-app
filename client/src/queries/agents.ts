@@ -16,13 +16,21 @@ export function useCreateAgent() {
 export function useUpdateAgent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: number; name?: string; color?: string }) =>
-      updateAgent(id, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: number;
+      name?: string;
+      color?: string;
+      iconImage?: string | null;
+    }) => updateAgent(id, body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["agents"] });
-      // 名前/色の変更はタスク一覧・ダッシュボードの担当表示にも反映される
+      // 名前/色/アイコンの変更はタスク一覧・ダッシュボード（WS/横断）の担当表示にも反映される
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["home"] });
     },
   });
 }
@@ -36,6 +44,7 @@ export function useDeleteAgent() {
       // エージェント削除で担当タスクが未割当に戻るため一覧も再取得
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
+      qc.invalidateQueries({ queryKey: ["home"] });
     },
   });
 }

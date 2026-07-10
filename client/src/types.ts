@@ -59,6 +59,7 @@ export interface Agent {
   id: number;
   name: string;
   color: string;
+  iconImage?: string | null; // アップロードしたアイコン画像（data URI。無ければ色＋🤖）
   workspaceId: number;
   ownerId: number | null;
   owner?: User | null;
@@ -99,7 +100,7 @@ export interface TaskNode {
   assigneeId: number | null;
   assignee?: User | null;
   assigneeAgentId: number | null;
-  assigneeAgent?: Pick<Agent, "id" | "name" | "color"> | null;
+  assigneeAgent?: Pick<Agent, "id" | "name" | "color" | "iconImage"> | null;
   tags?: Tag[]; // API が taskTags を平坦化して返す
   subtasks?: TaskNode[]; // 子タスク（再帰）
   _count?: { comments: number; subtasks?: number };
@@ -121,7 +122,7 @@ export interface Task {
   assigneeId: number | null;
   assignee?: User | null;
   assigneeAgentId: number | null;
-  assigneeAgent?: Pick<Agent, "id" | "name" | "color"> | null;
+  assigneeAgent?: Pick<Agent, "id" | "name" | "color" | "iconImage"> | null;
   parentId: number | null; // 親タスク（サブタスク時に設定）
   // 集約ビュー（メイン画面のダッシュボード/カレンダー）でのみ付与。どのWSのタスクかを示す。
   workspace?: { id: number; name: string; iconColor?: string | null; iconImage?: string | null };

@@ -27,6 +27,8 @@ import type { TaskNode } from "../types";
 import TagSelector from "../components/TagSelector";
 import TaskForm from "../components/TaskForm";
 import CommentThread from "../components/CommentThread";
+import UserAvatar from "../components/UserAvatar";
+import AgentIcon from "../components/AgentIcon";
 
 // D&D 同期用の安定した空配列。
 const EMPTY_NODES: TaskNode[] = [];
@@ -277,14 +279,15 @@ export default function TaskDetailPage() {
                         優先度: {PRIORITY_LABEL[s.priority]}
                       </span>
                       {s.assignee && (
-                        <span className="badge assignee">👤 {memberLabel(s.assignee)}</span>
+                        <span className="badge assignee">
+                          <UserAvatar user={s.assignee} size={16} />
+                          {memberLabel(s.assignee)}
+                        </span>
                       )}
                       {s.assigneeAgent && (
-                        <span
-                          className="badge assignee agent"
-                          style={{ background: s.assigneeAgent.color }}
-                        >
-                          🤖 {s.assigneeAgent.name}
+                        <span className="badge assignee agent">
+                          <AgentIcon agent={s.assigneeAgent} size={16} />
+                          {s.assigneeAgent.name}
                         </span>
                       )}
                       {s.tags?.map((t) => (
