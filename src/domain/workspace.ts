@@ -12,10 +12,36 @@ export interface ActiveWorkspace {
 // アクティブなワークスペースを解決する。
 // session.workspaceId が本人の所属を指していればそれを採用。
 // 無効/未設定なら最初の所属を既定にしてセッションへ保存する（Phase 3b で切替 UI を追加）。
+// Bearer 認証（MCP 等）では Cookie セッションを持たないため、X-Workspace-Id ヘッダで
+// 対象ワークスペースを明示指定できる（所属を厳格に検証し、非所属なら 403）。
+// 未指定なら従来どおり先頭の所属を既定にする。
 export async function resolveWorkspace(req: Request): Promise<ActiveWorkspace> {
   const userId = req.userId;
   // requireAuthApi 通過済みが前提だが、保険として
   if (!userId) throw new HttpError(401, "認証が必要です。", "UNAUTHENTICATED");
+
+  // Bearer（MCP）からの明示指定: X-Workspace-Id ヘッダ。所属していなければ 403。
+  // Web（Cookie）側は従来の session.workspaceId 解決を維持する（挙動不変）。
+  if (req.bearerAuth) {
+    const header = req.get("x-workspace-id");
+    if (header !== undefined && header !== "") {
+      const requestedId = Number(header);
+      if (!Number.isInteger(requestedId) || requestedId <= 0) {
+        throw new HttpError(400, "X-Workspace-Id が不正です。", "INVALID_WORKSPACE");
+      }
+      const explicit = await prisma.membership.findUnique({
+        where: { userId_workspaceId: { userId, workspaceId: requestedId } },
+      });
+      if (!explicit) {
+        throw new HttpError(
+          403,
+          "指定されたワークスペースにアクセスする権限がありません。",
+          "FORBIDDEN"
+        );
+      }
+      return { workspaceId: explicit.workspaceId, role: explicit.role };
+    }
+  }
 
   const wsId = req.session.workspaceId;
   let membership = wsId

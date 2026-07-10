@@ -4,6 +4,7 @@ import Layout from "./components/Layout";
 import WorkspaceLayout from "./components/WorkspaceLayout";
 import LoginPage from "./pages/LoginPage";
 import SignupPage from "./pages/SignupPage";
+import OAuthConsentPage from "./pages/OAuthConsentPage";
 import HomePage from "./pages/HomePage";
 import AccountPage from "./pages/AccountPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -18,6 +19,9 @@ export default function App() {
       {/* 公開ページ */}
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupPage />} />
+
+      {/* MCP（OAuth）認可の同意/アカウント確認画面。サーバ /authorize から遷移してくる。 */}
+      <Route path="/oauth/consent" element={<OAuthConsentPage />} />
 
       {/* 認証必須ページ（共通レイアウト配下） */}
       <Route

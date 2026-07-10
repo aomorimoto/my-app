@@ -114,7 +114,19 @@ export const oauthProvider: OAuthServerProvider = {
       return;
     }
 
-    // ログイン済み → ファーストパーティのため同意画面なしで即コード発行（自動承認）。
+    // ログイン済みでも、まずは同意/アカウント確認画面（SPA）を経由する。
+    // 「どのアカウントで接続するか」をユーザーが確認・切替できるようにするため、
+    // consent=granted が付いて戻ってくるまではコードを発行しない。
+    // 承認画面は同じ /authorize URL に consent=granted を付けて再遷移するので、
+    // SDK 側のクライアント/redirect_uri/PKCE 検証がその往復でも再適用される。
+    if (req.query.consent !== "granted") {
+      const q = req.originalUrl.indexOf("?");
+      const rawQuery = q >= 0 ? req.originalUrl.slice(q + 1) : "";
+      res.redirect(302, "/oauth/consent?" + rawQuery);
+      return;
+    }
+
+    // 承認済み → コードを発行（ファーストパーティのため権限スコープの選択はなし）。
     const { raw, hash } = generateOpaqueToken("mcp_ac_");
     await prisma.oAuthAuthorizationCode.create({
       data: {

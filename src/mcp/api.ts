@@ -7,17 +7,21 @@
 const BASE_URL = `http://127.0.0.1:${process.env.PORT || 8888}`;
 
 // REST を呼び出す。非 2xx は API の統一エラー形式 { error: { message } } を Error にして投げる。
+// opts.workspaceId を渡すと X-Workspace-Id ヘッダとして転送し、対象ワークスペースを明示する
+// （resolveWorkspace が Bearer 時にこのヘッダを解釈する。省略時は既定＝先頭WS）。
 export async function api(
   method: string,
   path: string,
   token: string,
-  body?: unknown
+  opts: { body?: unknown; workspaceId?: number } = {}
 ): Promise<unknown> {
+  const { body, workspaceId } = opts;
   const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
       Authorization: `Bearer ${token}`,
       ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(workspaceId !== undefined ? { "X-Workspace-Id": String(workspaceId) } : {}),
     },
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
