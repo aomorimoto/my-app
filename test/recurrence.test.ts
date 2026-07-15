@@ -1,6 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import request from "supertest";
-import { app, resetDb, signupAgent, closeDb } from "./helpers";
+import { resetDb, signupAgent, closeDb } from "./helpers";
 import {
   parseRecurrenceRule,
   isValidRecurrenceRule,
