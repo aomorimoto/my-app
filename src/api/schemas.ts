@@ -209,6 +209,8 @@ export const colorPrefsSchema = z
 
 // 自分のプロフィール更新（送られた項目のみ更新）。
 export const userUpdateSchema = z.object({
+  // ユーザーID（username）の変更。未送信は「変更なし」。形式検証は signup と同じ usernameField。
+  username: usernameField.optional(),
   name: z.preprocess(
     (v) => (v === "" ? null : v),
     z.string().trim().max(100).nullable().optional()

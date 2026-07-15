@@ -692,6 +692,89 @@ details.card summary {
   margin-bottom: 28px;
 }
 
+/* 進捗バー（共通） */
+.progress {
+  height: 8px;
+  background: var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.progress .progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--low);
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+/* ダッシュボードの全体進捗カード */
+.dash-progress {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+  margin-bottom: 20px;
+}
+.dash-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+.dash-progress-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+.dash-progress-pct {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--low);
+}
+.dash-progress-caption {
+  font-size: 0.8rem;
+  margin-top: 6px;
+}
+
+/* タスク詳細のサブタスク進捗 */
+.subtask-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -4px 0 14px;
+}
+.subtask-progress .progress {
+  flex: 1;
+}
+.subtask-progress-pct {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  min-width: 3ch;
+  text-align: right;
+}
+
+/* タスク行のサブタスク完了率（ミニ進捗バー付きバッジ） */
+.badge.subtasks.progress-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mini-progress {
+  display: inline-block;
+  width: 42px;
+  height: 6px;
+  background: rgba(109, 40, 217, 0.22);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.mini-progress-fill {
+  display: block;
+  height: 100%;
+  background: #6d28d9;
+  border-radius: 999px;
+}
+
 /* カレンダー */
 .cal-toolbar {
   display: flex;

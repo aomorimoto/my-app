@@ -97,7 +97,8 @@ export function registerTaskappTools(server: McpServer) {
     {
       title: "タスク一覧",
       description:
-        "指定ワークスペース（省略時は既定）のトップレベルタスクを一覧する。status/priority/assignee(担当ユーザー)/agent(担当エージェント)/tag による絞り込み、q によるキーワード検索、sort（dueDate|priority）、page によるページネーションに対応。",
+        "指定ワークスペース（省略時は既定）のトップレベルタスクを一覧する。status/priority/assignee(担当ユーザー)/agent(担当エージェント)/tag による絞り込み、q によるキーワード検索、sort（dueDate|priority）、page によるページネーションに対応。" +
+        "【階層構造】配列の要素はトップレベルタスクのみ。各タスクの子タスクは subtasks フィールドに入れ子（多階層）で入り、_count.subtasks に直下の子の件数が入る。サブタスクは独立したタスクではなく親タスクの手順/内訳なので、一覧や要約では親子のツリー構造を保って提示し、タスク件数を数えるときにサブタスクをトップレベルタスクと混同しないこと。",
       inputSchema: {
         workspaceId: workspaceIdField,
         status: z.enum(["TODO", "IN_PROGRESS", "DONE"]).optional(),
@@ -120,7 +121,8 @@ export function registerTaskappTools(server: McpServer) {
     {
       title: "全ワークスペース横断タスク一覧",
       description:
-        "接続アカウントが所属する『すべてのワークスペース』のトップレベルタスクを横断して一覧する。各タスクに所属先 workspace{id,name} が付く。特定のワークスペースに限定せず全体を俯瞰したいとき（例: 期限が近いものを全WSから集める）に使う。個別WSの絞り込みは list_tasks を使う。",
+        "接続アカウントが所属する『すべてのワークスペース』のトップレベルタスクを横断して一覧する。各タスクに所属先 workspace{id,name} が付く。特定のワークスペースに限定せず全体を俯瞰したいとき（例: 期限が近いものを全WSから集める）に使う。個別WSの絞り込みは list_tasks を使う。" +
+        "【階層構造】配列の要素はトップレベルタスクのみ。各タスクの子タスクは subtasks フィールドに入れ子（多階層）で入り、_count.subtasks に直下の子の件数が入る。サブタスクは独立したタスクではなく親タスクの手順/内訳なので、親子のツリー構造を保って提示し、タスク件数を数えるときにサブタスクをトップレベルタスクと混同しないこと。",
       inputSchema: {},
       annotations: { readOnlyHint: true },
     },
@@ -132,7 +134,7 @@ export function registerTaskappTools(server: McpServer) {
     {
       title: "タスク詳細",
       description:
-        "ID を指定してタスク1件の詳細（サブタスク・タグ・コメント件数含む）を取得する。タスクが既定以外のワークスペースにある場合は workspaceId も指定する。",
+        "ID を指定してタスク1件の詳細を取得する。子タスクは subtasks フィールドに入れ子（多階層）のツリーで、親から現在までの祖先チェーンは ancestors に入る。サブタスクは親タスクの手順/内訳として扱い、独立タスクと混同しないこと。タスクが既定以外のワークスペースにある場合は workspaceId も指定する。",
       inputSchema: { id: z.number().int().positive(), workspaceId: workspaceIdField },
       annotations: { readOnlyHint: true },
     },

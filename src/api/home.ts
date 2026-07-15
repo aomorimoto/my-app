@@ -14,10 +14,55 @@ const homeTaskInclude = {
   workspace: { select: { id: true, name: true, iconColor: true, iconImage: true } },
 } as const;
 
+// 兄弟内の並び順（tasks.ts と揃える）。
+const SIBLING_ORDER = [{ position: "asc" as const }, { createdAt: "asc" as const }];
+// 横断一覧で返すサブタスクツリーの深さ（tasks.ts の SUBTASK_DEPTH と揃える）。
+const SUBTASK_DEPTH = 4;
+
+// サブタスク1ノードの select（親と同じ表示情報＋担当者＋タグ＋件数）。
+// depth > 0 のとき子（subtasks）も再帰的に含める。これにより横断一覧でも親子ツリーを保てる。
+function homeSubtaskNode(depth: number): any {
+  const select: any = {
+    id: true,
+    title: true,
+    description: true,
+    status: true,
+    priority: true,
+    dueDate: true,
+    parentId: true,
+    position: true,
+    recurrenceRule: true,
+    assigneeId: true,
+    assigneeAgentId: true,
+    createdAt: true,
+    assignee: { select: { id: true, username: true, name: true, avatarColor: true, avatarImage: true } },
+    assigneeAgent: { select: { id: true, name: true, color: true, iconImage: true } },
+    taskTags: { include: { tag: true } },
+    _count: { select: { comments: true, subtasks: true } },
+  };
+  if (depth > 0) {
+    select.subtasks = { select: homeSubtaskNode(depth - 1), orderBy: SIBLING_ORDER };
+  }
+  return select;
+}
+
+// 横断タスク一覧（カレンダー / MCP list_all_tasks）用の include。
+// homeTaskInclude にサブタスクツリーと件数を足し、親子構造を明示できるようにする。
+const homeTaskTreeInclude = {
+  ...homeTaskInclude,
+  subtasks: { select: homeSubtaskNode(SUBTASK_DEPTH), orderBy: SIBLING_ORDER },
+  _count: { select: { comments: true, subtasks: true } },
+} as const;
+
 // taskTags（中間テーブル）を tags: Tag[] に平坦化する（tasks.ts / dashboard.ts と同方針）。
-function shapeTask<T extends { taskTags: { tag: unknown }[] }>(task: T) {
-  const { taskTags, ...rest } = task;
-  return { ...rest, tags: taskTags.map((tt) => tt.tag) };
+// サブタスクツリーが含まれる場合は再帰的に平坦化する。
+function shapeTask(task: any): any {
+  const { taskTags, subtasks, ...rest } = task;
+  return {
+    ...rest,
+    tags: (taskTags ?? []).map((tt: any) => tt.tag),
+    ...(subtasks ? { subtasks: subtasks.map(shapeTask) } : {}),
+  };
 }
 
 // 現在日の 0 時（UTC）。期限は日付のみ入力 → UTC 深夜で保存されるため、境界も UTC で取る。
@@ -99,15 +144,16 @@ apiHomeRouter.get("/dashboard", async (req, res) => {
   });
 });
 
-// メイン画面カレンダー：所属する全ワークスペースのトップレベルタスクを返す。
-// 表示側（CalendarGrid）が期限のある日にチップとして配置する。
+// メイン画面カレンダー / MCP list_all_tasks：所属する全ワークスペースのトップレベルタスクを返す。
+// 各タスクの子は subtasks に入れ子で含む（親子ツリーを保つ）。表示側（CalendarGrid）は
+// トップレベルのみを日付に配置し、MCP 側は入れ子構造からツリーを認識できる。
 apiHomeRouter.get("/tasks", async (req, res) => {
   const userId = req.userId!;
   const workspaceIds = await myWorkspaceIds(userId);
 
   const tasks = await prisma.task.findMany({
     where: { workspaceId: { in: workspaceIds }, parentId: null },
-    include: homeTaskInclude,
+    include: homeTaskTreeInclude,
     orderBy: { createdAt: "desc" },
   });
 

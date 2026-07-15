@@ -23,6 +23,9 @@ export default function DashboardPanel({ scope = "workspace" }: { scope?: "works
 
   const { summary, upcoming, myTasks } = data;
 
+  // 全体の進捗（完了タスク ÷ 全タスク）。トップレベルタスクの完了率。
+  const donePct = summary.total > 0 ? Math.round((summary.byStatus.DONE / summary.total) * 100) : 0;
+
   const stats = [
     { key: "overdue", label: "期限超過", value: summary.overdue, tone: "danger" },
     { key: "dueToday", label: "今日締切", value: summary.dueToday, tone: "warn" },
@@ -41,6 +44,19 @@ export default function DashboardPanel({ scope = "workspace" }: { scope?: "works
 
   return (
     <>
+      <section className="dash-progress">
+        <div className="dash-progress-head">
+          <span className="dash-progress-title">全体の進捗</span>
+          <span className="dash-progress-pct">{donePct}%</span>
+        </div>
+        <div className="progress">
+          <span className="progress-fill" style={{ width: `${donePct}%` }} />
+        </div>
+        <div className="dash-progress-caption muted">
+          {summary.byStatus.DONE} / {summary.total} 完了
+        </div>
+      </section>
+
       <section className="stat-grid">
         {stats.map((s) => (
           <div key={s.key} className={`stat-card ${s.tone}`}>

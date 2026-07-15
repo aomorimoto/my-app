@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../db";
 import { userUpdateSchema } from "./schemas";
+import { HttpError } from "./http";
 
 export const apiUsersRouter = Router();
 
@@ -38,6 +39,18 @@ apiUsersRouter.patch("/me", async (req, res) => {
   const input = userUpdateSchema.parse(req.body);
 
   const data: Record<string, unknown> = {};
+  // ユーザーID（username）の変更。重複時は 409（signup と同じ扱い）。
+  // 自分の現在の username と同じ場合（大文字小文字だけ変えた等）は衝突扱いしない。
+  if (input.username !== undefined) {
+    const taken = await prisma.user.findUnique({
+      where: { username: input.username },
+      select: { id: true },
+    });
+    if (taken && taken.id !== userId) {
+      throw new HttpError(409, "このユーザーIDは既に使われています。", "USERNAME_TAKEN");
+    }
+    data.username = input.username;
+  }
   if (input.name !== undefined) data.name = input.name;
   if (input.avatarColor !== undefined) data.avatarColor = input.avatarColor;
   if (input.avatarImage !== undefined) data.avatarImage = input.avatarImage;

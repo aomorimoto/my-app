@@ -21,6 +21,7 @@ export default function AccountPage() {
   const update = useUpdateMe();
   const user = meQ.data?.user;
 
+  const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [avatarColor, setAvatarColor] = useState("#2563eb");
   const [avatarImage, setAvatarImage] = useState<string | null>(null);
@@ -33,6 +34,7 @@ export default function AccountPage() {
   // 取得したユーザー情報をフォームへ反映
   useEffect(() => {
     if (user) {
+      setUsername(user.username);
       setName(user.name ?? "");
       setAvatarColor(user.avatarColor || "#2563eb");
       setAvatarImage(user.avatarImage ?? null);
@@ -53,11 +55,18 @@ export default function AccountPage() {
   };
 
   // プレビュー用の擬似ユーザー（現在のフォーム値でアバターを表示）
-  const preview = { name, username: user.username, avatarColor, avatarImage };
+  const preview = { name, username, avatarColor, avatarImage };
 
   const onSaveProfile = (e: FormEvent) => {
     e.preventDefault();
-    update.mutate({ name: name.trim() || null }, { onSuccess: () => flash("名前を保存しました。"), onError: fail });
+    // ユーザーIDは変更時のみ送る（サーバ側で小文字化・重複チェック）。
+    const nextUsername = username.trim().toLowerCase();
+    const payload: { name: string | null; username?: string } = { name: name.trim() || null };
+    if (nextUsername !== user.username) payload.username = nextUsername;
+    update.mutate(payload, {
+      onSuccess: () => flash("プロフィールを保存しました。"),
+      onError: fail,
+    });
   };
 
   const onPickImage = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -112,11 +121,22 @@ export default function AccountPage() {
           </label>
           <label>
             ユーザーID
-            <input type="text" value={user.username} disabled />
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="user_id"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <small className="muted">
+              ログインに使うIDです。英小文字・数字・_ . - の3〜30文字。変更するとログインIDも新しいIDに変わります。
+            </small>
           </label>
           <div className="actions">
             <button type="submit" className="btn-primary" disabled={update.isPending}>
-              名前を保存
+              保存
             </button>
           </div>
         </form>

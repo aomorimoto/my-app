@@ -8,8 +8,9 @@ export interface MeResponse {
 
 export const fetchMe = () => apiFetch<MeResponse>("/api/auth/me");
 
-// 自分のプロフィール更新（名前・アバター色/画像・表示色設定）。送る項目のみ更新。
+// 自分のプロフィール更新（ユーザーID・名前・アバター色/画像・表示色設定）。送る項目のみ更新。
 export interface UpdateMeInput {
+  username?: string;
   name?: string | null;
   avatarColor?: string | null;
   avatarImage?: string | null;

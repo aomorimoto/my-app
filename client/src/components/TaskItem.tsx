@@ -36,6 +36,8 @@ export default function TaskItem({
   const subtasks = task.subtasks ?? [];
   const childCount = task._count?.subtasks ?? subtasks.length;
   const doneSubtasks = subtasks.filter((s) => s.status === "DONE").length;
+  // サブタスクの進捗（直下の子だけで集計した完了率）
+  const progressPct = childCount > 0 ? Math.round((doneSubtasks / childCount) * 100) : 0;
   const commentCount = task._count?.comments ?? 0;
 
   const open = () => navigate(`/tasks/${task.id}`);
@@ -112,8 +114,14 @@ export default function TaskItem({
               </span>
             ))}
             {childCount > 0 && (
-              <span className="badge subtasks">
-                サブタスク {doneSubtasks}/{childCount}
+              <span
+                className="badge subtasks progress-badge"
+                title={`サブタスク ${doneSubtasks}/${childCount} 完了`}
+              >
+                <span className="mini-progress" aria-hidden>
+                  <span className="mini-progress-fill" style={{ width: `${progressPct}%` }} />
+                </span>
+                {progressPct}%（{doneSubtasks}/{childCount}）
               </span>
             )}
             {commentCount > 0 && <span className="badge comments">💬 {commentCount}</span>}

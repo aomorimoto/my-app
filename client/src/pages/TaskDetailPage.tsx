@@ -112,6 +112,9 @@ export default function TaskDetailPage() {
   // 保存/削除/キャンセル後の戻り先（サブタスクなら親タスク、そうでなければ一覧）。
   const backTo = isSubtask ? `/tasks/${task.parentId}` : "/tasks";
   const subtasks = subDrag.items;
+  // サブタスクの進捗（直下の子だけで集計した完了率）
+  const subtaskDone = subtasks.filter((s) => s.status === "DONE").length;
+  const subtaskPct = subtasks.length > 0 ? Math.round((subtaskDone / subtasks.length) * 100) : 0;
   const set = (patch: Partial<FormState>) => setForm((f) => ({ ...f, ...patch }));
 
   const onSubmit = (e: FormEvent) => {
@@ -246,8 +249,16 @@ export default function TaskDetailPage() {
       {/* サブタスク（多階層。各行をクリックすると、そのサブタスクの編集画面へ） */}
       <section className="card subtask-section">
         <h2 className="section-title">
-          サブタスク（{subtasks.filter((s) => s.status === "DONE").length}/{subtasks.length}）
+          サブタスク（{subtaskDone}/{subtasks.length}）
         </h2>
+        {subtasks.length > 0 && (
+          <div className="subtask-progress">
+            <div className="progress">
+              <span className="progress-fill" style={{ width: `${subtaskPct}%` }} />
+            </div>
+            <span className="subtask-progress-pct">{subtaskPct}%</span>
+          </div>
+        )}
         {subtasks.length === 0 ? (
           <p className="muted">サブタスクはありません。</p>
         ) : (
