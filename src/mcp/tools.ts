@@ -2,7 +2,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { api, toQuery } from "./api";
 
-// タスク管理アプリ（REST /api）を MCP ツールとして公開する（トランスポート非依存）。
+// Delegaru（タスク管理アプリ, REST /api）を MCP ツールとして公開する（トランスポート非依存）。
 // 「要約」「整理」は専用ツールにせず、Claude が下記ツールを組み合わせて実現する（design.md §8）。
 // リモート版では各ツールが、OAuth で検証済みのアクセストークン（extra.authInfo.token）を
 // ループバック /api へ転送して実行する。
@@ -74,7 +74,7 @@ const taskFields = {
     .optional(),
 };
 
-// taskapp の全ツールを MCP サーバに登録する。
+// Delegaru の全ツールを MCP サーバに登録する。
 export function registerTaskappTools(server: McpServer) {
   // --- ワークスペース（読み取り） ---
 

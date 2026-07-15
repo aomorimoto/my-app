@@ -1,4 +1,4 @@
-// タスク管理アプリの Prisma スキーマ
+// Delegaru（タスク管理アプリ）の Prisma スキーマ
 // docs: https://pris.ly/d/prisma-schema
 
 generator client {

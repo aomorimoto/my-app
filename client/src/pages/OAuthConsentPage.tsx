@@ -69,7 +69,7 @@ export default function OAuthConsentPage() {
       <div className="auth-card card">
         <h1>接続の確認</h1>
         <p className="muted">
-          外部アプリ（Claude など）が、以下のアカウントとして taskapp に接続しようとしています。
+          外部アプリ（Claude など）が、以下のアカウントとして Delegaru に接続しようとしています。
         </p>
 
         <div className="consent-account">

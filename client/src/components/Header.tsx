@@ -40,7 +40,7 @@ export default function Header() {
   return (
     <header className="site-header">
       <Link className="brand" to="/">
-        📋 タスク管理
+        📋 Delegaru
       </Link>
 
       {user && (

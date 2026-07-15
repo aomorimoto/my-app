@@ -42,8 +42,8 @@ export function mountMcp(app: Express) {
       provider: oauthProvider,
       issuerUrl,
       resourceServerUrl,
-      scopesSupported: ["taskapp"],
-      resourceName: "taskapp",
+      scopesSupported: ["delegaru"],
+      resourceName: "Delegaru",
     })
   );
 

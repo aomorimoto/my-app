@@ -1,5 +1,5 @@
 {
-  "name": "my-app",
+  "name": "delegaru",
   "version": "1.0.0",
   "type": "module",
   "main": "index.js",
@@ -15,7 +15,7 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "タスク管理アプリ（Express API + React SPA + Prisma + PostgreSQL）",
+  "description": "Delegaru — タスク管理アプリ（Express API + React SPA + Prisma + PostgreSQL）",
   "devDependencies": {
     "@eslint/js": "^9.0.0",
     "@types/connect-pg-simple": "^7.0.3",
