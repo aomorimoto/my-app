@@ -37,13 +37,15 @@ export default function App() {
         {/* ユーザー設定（ワークスペースに依存しない全体設定: 名前・アバター・表示色） */}
         <Route path="/account" element={<AccountPage />} />
 
-        {/* ワークスペース内ページ（サブナビ付き: ダッシュボード/カレンダー/タスク/設定） */}
-        <Route element={<WorkspaceLayout />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/calendar" element={<CalendarPage />} />
-          <Route path="/tasks" element={<TasksPage />} />
-          <Route path="/tasks/:id" element={<TaskDetailPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
+        {/* ワークスペース内ページ（URL 駆動 /w/:wsPublicId、サブナビ付き）。
+            WorkspaceLayout が publicId を解決し、所属チェック＋Context 提供を行う。 */}
+        <Route path="/w/:wsPublicId" element={<WorkspaceLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="tasks" element={<TasksPage />} />
+          <Route path="tasks/:number" element={<TaskDetailPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>
 

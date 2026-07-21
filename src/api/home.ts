@@ -11,7 +11,8 @@ const homeTaskInclude = {
   assignee: { select: { id: true, username: true, name: true, avatarColor: true, avatarImage: true } },
   assigneeAgent: { select: { id: true, name: true, color: true, iconImage: true } },
   taskTags: { include: { tag: true } },
-  workspace: { select: { id: true, name: true, iconColor: true, iconImage: true } },
+  // 所属WSは publicId で示す（内部の連番 id は露出しない）。
+  workspace: { select: { publicId: true, name: true, iconColor: true, iconImage: true } },
 } as const;
 
 // 兄弟内の並び順（tasks.ts と揃える）。
@@ -24,6 +25,7 @@ const SUBTASK_DEPTH = 4;
 function homeSubtaskNode(depth: number): any {
   const select: any = {
     id: true,
+    number: true,
     title: true,
     description: true,
     status: true,

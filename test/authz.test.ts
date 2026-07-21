@@ -5,66 +5,64 @@ beforeEach(resetDb);
 afterAll(closeDb);
 
 describe("authorization", () => {
-  it("他ワークスペースのタスクは参照できない（404）", async () => {
+  it("存在しないワークスペースへのアクセスは 404", async () => {
+    const a = await signupAgent({ username: "who" });
+    const res = await a.agent.get("/api/w/nonexistent-public-id/tasks");
+    expect(res.status).toBe(404);
+    expect(res.body.error.code).toBe("WORKSPACE_NOT_FOUND");
+  });
+
+  it("非メンバーは他ワークスペースのタスクを参照できない（403）", async () => {
     const a = await signupAgent({ username: "owner-a" });
     const b = await signupAgent({ username: "owner-b" });
 
-    const created = await a.agent.post("/api/tasks").send({ title: "A のタスク" });
-    const id = created.body.task.id;
+    await a.agent.post(`/api/w/${a.wsPublicId}/tasks`).send({ title: "A のタスク" });
 
-    // B は自分のワークスペースにスコープされるため、A のタスクは見つからない（404）
-    const res = await b.agent.get(`/api/tasks/${id}`);
-    expect(res.status).toBe(404);
+    // B は A の WS のメンバーではないため、スコープ解決の時点で 403（タスク番号にも到達しない）。
+    const res = await b.agent.get(`/api/w/${a.wsPublicId}/tasks`);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
   });
 
-  it("他ワークスペースのエージェントは削除できない（404）", async () => {
+  it("非メンバーは他ワークスペースにエージェントを作成できない（403）", async () => {
     const a = await signupAgent({ username: "agent-a" });
     const b = await signupAgent({ username: "agent-b" });
 
-    // A がエージェントを作成
-    const created = await a.agent.post("/api/agents").send({ name: "リサーチ担当" });
-    expect(created.status).toBe(201);
-    const agentId = created.body.agent.id;
-
-    // B は自分の WS にスコープされるため、A のエージェントは対象外（404）
-    const res = await b.agent.delete(`/api/agents/${agentId}`);
-    expect(res.status).toBe(404);
+    const res = await b.agent.post(`/api/w/${a.wsPublicId}/agents`).send({ name: "越境エージェント" });
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
   });
 
-  it("他ワークスペースのタグは削除できない（404）", async () => {
+  it("非メンバーは他ワークスペースのタグを削除できない（403）", async () => {
     const a = await signupAgent({ username: "tag-a" });
     const b = await signupAgent({ username: "tag-b" });
 
-    const created = await a.agent.post("/api/tags").send({ name: "重要" });
+    const created = await a.agent.post(`/api/w/${a.wsPublicId}/tags`).send({ name: "重要" });
     expect(created.status).toBe(201);
     const tagId = created.body.tag.id;
 
-    // B は自分の WS にスコープされるため、A のタグは対象外（404）
-    const res = await b.agent.delete(`/api/tags/${tagId}`);
-    expect(res.status).toBe(404);
+    // B は A の WS のメンバーではないため、スコープ解決の時点で 403。
+    const res = await b.agent.delete(`/api/w/${a.wsPublicId}/tags/${tagId}`);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe("FORBIDDEN");
   });
 
   it("MEMBER はタグを作成できない（403）", async () => {
     const owner = await signupAgent({ username: "team-owner" });
     const member = await signupAgent({ username: "team-member" });
 
-    // owner のアクティブ WS の id を取得
-    const me = await owner.agent.get("/api/auth/me");
-    const wsId = me.body.activeWorkspace.id;
-
     // owner が member をユーザーIDで追加（既定ロール MEMBER）
     const add = await owner.agent
-      .post(`/api/workspaces/${wsId}/members`)
+      .post(`/api/w/${owner.wsPublicId}/members`)
       .send({ username: "team-member" });
     expect(add.status).toBe(201);
     expect(add.body.member.role).toBe("MEMBER");
 
-    // member 側で対象 WS をアクティブ化
-    const activate = await member.agent.post(`/api/workspaces/${wsId}/activate`);
-    expect(activate.status).toBe(200);
-
-    // MEMBER はタグ作成不可（OWNER / ADMIN のみ）
-    const res = await member.agent.post("/api/tags").send({ name: "新タグ" });
+    // member は owner の WS へ publicId で直接アクセスできる（アクティブ化は不要）。
+    // ただし MEMBER はタグ作成不可（OWNER / ADMIN のみ）。
+    const res = await member.agent
+      .post(`/api/w/${owner.wsPublicId}/tags`)
+      .send({ name: "新タグ" });
     expect(res.status).toBe(403);
     expect(res.body.error.code).toBe("FORBIDDEN");
   });

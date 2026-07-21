@@ -35,6 +35,9 @@ model User {
 // 共有空間（チーム/プロジェクト）。データの所有単位。
 model Workspace {
   id         Int          @id @default(autoincrement())
+  // 外部公開用の不透明ID（URL /w/:publicId や AI 出力に露出。連番の内部 id は隠す）。
+  // アプリ側で生成（generatePublicId）。既存データは移行時に採番。
+  publicId   String       @unique
   name       String
   iconColor  String? // ワークスペースアイコンの単色背景（#RRGGBB）。未設定は既定色
   iconImage  String? // アップロードしたアイコン画像（data URI。未設定は色+頭文字を表示）
@@ -81,6 +84,9 @@ model Agent {
 // タスク
 model Task {
   id          Int       @id @default(autoincrement())
+  // ワークスペース内の連番（#1, #2…）。URL /w/:publicId/tasks/:number や AI 出力に露出する
+  // 人間向けの番号。内部の自動採番 id とは別で、WS ごとに 1 から振る（アプリ側で採番）。
+  number      Int
   title       String
   description String?
   status      Status    @default(TODO)
@@ -107,6 +113,8 @@ model Task {
   comments    Comment[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, number]) // WS 内で番号の重複を禁止（採番の一意性）
 }
 
 // タグ（ワークスペースごと）。1タスクに複数付与できる分類軸。

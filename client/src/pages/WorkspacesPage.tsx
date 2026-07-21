@@ -6,6 +6,7 @@ import {
   useUpdateMemberRole,
   useRemoveMember,
 } from "../queries/workspaces";
+import { useWorkspace } from "../lib/workspaceContext";
 import { ROLE_LABEL, memberLabel } from "../labels";
 import type { Role } from "../types";
 
@@ -13,15 +14,14 @@ const ASSIGNABLE_ROLES: Role[] = ["ADMIN", "MEMBER"];
 
 export default function WorkspacesPage() {
   const meQ = useMe();
-  const active = meQ.data?.activeWorkspace;
-  const activeId = active?.id;
+  const { workspace: active } = useWorkspace();
   const myUserId = meQ.data?.user?.id;
-  const canManage = active?.role === "OWNER" || active?.role === "ADMIN";
+  const canManage = active.role === "OWNER" || active.role === "ADMIN";
 
-  const membersQ = useMembers(activeId);
-  const addMember = useAddMember(activeId ?? 0);
-  const updateRole = useUpdateMemberRole(activeId ?? 0);
-  const removeMember = useRemoveMember(activeId ?? 0);
+  const membersQ = useMembers();
+  const addMember = useAddMember();
+  const updateRole = useUpdateMemberRole();
+  const removeMember = useRemoveMember();
 
   const [username, setUsername] = useState("");
   const [role, setRole] = useState<Role>("MEMBER");

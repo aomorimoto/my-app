@@ -26,6 +26,7 @@ const SUBTASK_DEPTH = 4;
 function subtaskNode(depth: number): any {
   const select: any = {
     id: true,
+    number: true,
     title: true,
     description: true,
     status: true,
@@ -144,25 +145,58 @@ async function assertParentValid(workspaceId: number, parentId: number, selfId?:
 
 // 祖先チェーン（root → 直近の親）を返す。パンくず表示用。
 // parentId を辿るだけの軽量クエリ（多階層でも通常は数段）。循環は seen で防御。
+// 各要素は WS 内の連番 number（URL/リンク用）とタイトルを持つ。
 async function buildAncestors(
   workspaceId: number,
   parentId: number | null
-): Promise<{ id: number; title: string }[]> {
-  const chain: { id: number; title: string }[] = [];
+): Promise<{ number: number; title: string }[]> {
+  const chain: { number: number; title: string }[] = [];
   const seen = new Set<number>();
   let cursor: number | null = parentId;
   while (cursor != null && !seen.has(cursor)) {
     seen.add(cursor);
-    const p: { id: number; title: string; parentId: number | null } | null =
+    const p: { id: number; number: number; title: string; parentId: number | null } | null =
       await prisma.task.findFirst({
         where: { id: cursor, workspaceId },
-        select: { id: true, title: true, parentId: true },
+        select: { id: true, number: true, title: true, parentId: true },
       });
     if (!p) break;
-    chain.push({ id: p.id, title: p.title });
+    chain.push({ number: p.number, title: p.title });
     cursor = p.parentId;
   }
   return chain.reverse();
+}
+
+// タスクを WS 内の連番（number）で引く共通ヘルパ。見つからなければ 404。
+async function findTaskByNumber(workspaceId: number, number: number) {
+  const task = await prisma.task.findUnique({
+    where: { workspaceId_number: { workspaceId, number } },
+  });
+  if (!task) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
+  return task;
+}
+
+// WS 内で次のタスク番号を採番してタスクを作成する。
+// 連番は max(number)+1。稀に競合（同一WSの並行作成）で unique 制約に当たったら採番し直す。
+async function createTaskWithNumber(data: any, include?: any) {
+  const workspaceId: number = data.workspaceId;
+  for (let attempt = 0; ; attempt++) {
+    const agg = await prisma.task.aggregate({
+      where: { workspaceId },
+      _max: { number: true },
+    });
+    const number = (agg._max.number ?? 0) + 1;
+    try {
+      return await prisma.task.create({
+        data: { ...data, number },
+        ...(include ? { include } : {}),
+      });
+    } catch (err: any) {
+      // number の unique 衝突（並行作成）だけリトライ。それ以外は投げる。
+      if (err?.code === "P2002" && attempt < 5) continue;
+      throw err;
+    }
+  }
 }
 
 // 1ページあたりの件数（ページネーション有効時）
@@ -235,14 +269,34 @@ apiTasksRouter.get("/", async (req, res) => {
 
 // タスク作成
 apiTasksRouter.post("/", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
+  const { workspaceId } = resolveWorkspace(req);
   const userId = req.userId!;
   const input = taskCreateSchema.parse(req.body);
   assertSingleAssignee(input.assigneeId, input.assigneeAgentId);
   if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);
   if (input.assigneeAgentId != null) await assertAgentInWorkspace(workspaceId, input.assigneeAgentId);
-  if (input.parentId != null) await assertParentValid(workspaceId, input.parentId);
   if (input.tagIds) await assertTagsInWorkspace(workspaceId, input.tagIds);
+
+  // 親（サブタスク化）は WS 内の番号（parentNumber）で指定する。存在すれば内部 id を得る。
+  let parent:
+    | {
+        id: number;
+        status: any;
+        priority: any;
+        dueDate: Date | null;
+        assigneeId: number | null;
+        assigneeAgentId: number | null;
+        taskTags: { tagId: number }[];
+      }
+    | null = null;
+  if (input.parentNumber != null) {
+    parent = await prisma.task.findUnique({
+      where: { workspaceId_number: { workspaceId, number: input.parentNumber } },
+      include: { taskTags: { select: { tagId: true } } },
+    });
+    if (!parent) throw new HttpError(400, "指定された親タスクが見つかりません。", "INVALID_PARENT");
+  }
+  const parentId = parent?.id ?? null;
 
   // サブタスク新規作成時は、明示指定の無いフィールド（未送信＝undefined）を親から継承する。
   // 状態・優先度・期限・担当者・タグの初期値を親タスクに合わせる（design.md §11）。
@@ -253,31 +307,23 @@ apiTasksRouter.post("/", async (req, res) => {
   let assigneeAgentId = input.assigneeAgentId ?? null;
   let tagIds = input.tagIds;
 
-  if (input.parentId != null) {
-    const parent = await prisma.task.findFirst({
-      where: { id: input.parentId, workspaceId },
-      include: { taskTags: { select: { tagId: true } } },
-    });
-    if (parent) {
-      if (input.status === undefined) status = parent.status;
-      if (input.priority === undefined) priority = parent.priority;
-      if (input.dueDate === undefined) dueDate = parent.dueDate;
-      // 担当者はユーザー/エージェントのどちらも未指定のときだけ親から引き継ぐ。
-      if (input.assigneeId === undefined && input.assigneeAgentId === undefined) {
-        assigneeId = parent.assigneeId;
-        assigneeAgentId = parent.assigneeAgentId;
-      }
-      if (input.tagIds === undefined) tagIds = parent.taskTags.map((tt) => tt.tagId);
+  if (parent) {
+    if (input.status === undefined) status = parent.status;
+    if (input.priority === undefined) priority = parent.priority;
+    if (input.dueDate === undefined) dueDate = parent.dueDate;
+    // 担当者はユーザー/エージェントのどちらも未指定のときだけ親から引き継ぐ。
+    if (input.assigneeId === undefined && input.assigneeAgentId === undefined) {
+      assigneeId = parent.assigneeId;
+      assigneeAgentId = parent.assigneeAgentId;
     }
+    if (input.tagIds === undefined) tagIds = parent.taskTags.map((tt) => tt.tagId);
   }
 
   // 兄弟（同一WS・同一 parent）の末尾に配置する。
-  const position = await prisma.task.count({
-    where: { workspaceId, parentId: input.parentId ?? null },
-  });
+  const position = await prisma.task.count({ where: { workspaceId, parentId } });
 
-  const task = await prisma.task.create({
-    data: {
+  const task = await createTaskWithNumber(
+    {
       title: input.title,
       description: input.description ?? null,
       status,
@@ -285,7 +331,7 @@ apiTasksRouter.post("/", async (req, res) => {
       dueDate,
       assigneeId,
       assigneeAgentId,
-      parentId: input.parentId ?? null,
+      parentId,
       position,
       // 繰り返しは親からは継承しない（サブタスクは繰り返しインスタンスではない）。
       recurrenceRule: input.recurrenceRule ?? null,
@@ -295,20 +341,32 @@ apiTasksRouter.post("/", async (req, res) => {
         ? { taskTags: { create: tagIds.map((tagId) => ({ tagId })) } }
         : {}),
     },
-    include: taskInclude,
-  });
+    taskInclude
+  );
   res.status(201).json({ task: shapeTask(task) });
 });
 
-// 兄弟内の並べ替え（D&D）。parentId が同じタスク群の position を配列順に更新する。
-// parentId 省略 = トップレベル（null）。他WS・別 parent の id は 0 件マッチで無視される。
+// 兄弟内の並べ替え（D&D）。parentNumber が同じタスク群の position を配列順に更新する。
+// order は WS 内の連番（number）。parentNumber 省略 = トップレベル（null）。
 apiTasksRouter.post("/reorder", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
-  const { parentId, order } = taskReorderSchema.parse(req.body);
+  const { workspaceId } = resolveWorkspace(req);
+  const { parentNumber, order } = taskReorderSchema.parse(req.body);
+
+  // 親を number → 内部 id に解決（トップレベルは null）。
+  let parentId: number | null = null;
+  if (parentNumber != null) {
+    const parent = await prisma.task.findUnique({
+      where: { workspaceId_number: { workspaceId, number: parentNumber } },
+      select: { id: true },
+    });
+    if (!parent) throw new HttpError(400, "指定された親タスクが見つかりません。", "INVALID_PARENT");
+    parentId = parent.id;
+  }
+
   await prisma.$transaction(
-    order.map((id, index) =>
+    order.map((number, index) =>
       prisma.task.updateMany({
-        where: { id, workspaceId, parentId: parentId ?? null },
+        where: { number, workspaceId, parentId },
         data: { position: index },
       })
     )
@@ -316,35 +374,48 @@ apiTasksRouter.post("/reorder", async (req, res) => {
   res.status(204).end();
 });
 
-// タスク単一取得
-apiTasksRouter.get("/:id", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
-  const id = parseId(req.params.id);
-  const task = await prisma.task.findFirst({
-    where: { id, workspaceId },
+// タスク単一取得（WS 内の連番 number で指定）
+apiTasksRouter.get("/:number", async (req, res) => {
+  const { workspaceId } = resolveWorkspace(req);
+  const number = parseId(req.params.number);
+  const task = await prisma.task.findUnique({
+    where: { workspaceId_number: { workspaceId, number } },
     include: taskInclude,
   });
   if (!task) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
-  // パンくず用に祖先チェーン（root → 親）を併せて返す。
+  // パンくず用に祖先チェーン（root → 親）を併せて返す（各要素は number）。
   const ancestors = await buildAncestors(workspaceId, task.parentId);
   res.json({ task: { ...shapeTask(task), ancestors } });
 });
 
-// タスク更新（PATCH：送られてきた項目のみ更新）
-apiTasksRouter.patch("/:id", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
-  const id = parseId(req.params.id);
+// タスク更新（PATCH：送られてきた項目のみ更新。WS 内の連番 number で指定）
+apiTasksRouter.patch("/:number", async (req, res) => {
+  const { workspaceId } = resolveWorkspace(req);
+  const number = parseId(req.params.number);
   const input = taskUpdateSchema.parse(req.body);
 
-  // 対象ワークスペースのタスクか確認（他ワークスペースは更新させない）
-  const existing = await prisma.task.findFirst({ where: { id, workspaceId } });
-  if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
+  const existing = await findTaskByNumber(workspaceId, number);
 
   assertSingleAssignee(input.assigneeId, input.assigneeAgentId);
   if (input.assigneeId != null) await assertAssigneeInWorkspace(workspaceId, input.assigneeId);
   if (input.assigneeAgentId != null) await assertAgentInWorkspace(workspaceId, input.assigneeAgentId);
-  if (input.parentId != null) await assertParentValid(workspaceId, input.parentId, id);
   if (input.tagIds) await assertTagsInWorkspace(workspaceId, input.tagIds);
+
+  // 親の付け替え（parentNumber）。number → 内部 id に解決し、循環をチェック。
+  let newParentId: number | null | undefined = undefined;
+  if (input.parentNumber !== undefined) {
+    if (input.parentNumber === null) {
+      newParentId = null;
+    } else {
+      const parent = await prisma.task.findUnique({
+        where: { workspaceId_number: { workspaceId, number: input.parentNumber } },
+        select: { id: true },
+      });
+      if (!parent) throw new HttpError(400, "指定された親タスクが見つかりません。", "INVALID_PARENT");
+      await assertParentValid(workspaceId, parent.id, existing.id);
+      newParentId = parent.id;
+    }
+  }
 
   // undefined（未送信）の項目は更新対象から外す
   const data: any = {};
@@ -363,7 +434,7 @@ apiTasksRouter.patch("/:id", async (req, res) => {
     data.assigneeAgentId = input.assigneeAgentId;
     if (input.assigneeAgentId != null) data.assigneeId = null;
   }
-  if (input.parentId !== undefined) data.parentId = input.parentId;
+  if (newParentId !== undefined) data.parentId = newParentId;
   // tagIds が来たら全置き換え（既存の TaskTag を消してから作り直す）
   if (input.tagIds !== undefined) {
     data.taskTags = {
@@ -372,31 +443,30 @@ apiTasksRouter.patch("/:id", async (req, res) => {
     };
   }
 
-  const task = await prisma.task.update({ where: { id }, data, include: taskInclude });
+  const task = await prisma.task.update({ where: { id: existing.id }, data, include: taskInclude });
   res.json({ task: shapeTask(task) });
 });
 
-// タスク削除
-apiTasksRouter.delete("/:id", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
-  const id = parseId(req.params.id);
-  const result = await prisma.task.deleteMany({ where: { id, workspaceId } });
+// タスク削除（WS 内の連番 number で指定）
+apiTasksRouter.delete("/:number", async (req, res) => {
+  const { workspaceId } = resolveWorkspace(req);
+  const number = parseId(req.params.number);
+  const result = await prisma.task.deleteMany({ where: { workspaceId, number } });
   if (result.count === 0) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
   res.status(204).end();
 });
 
-// 完了 / 未完了の切替。
+// 完了 / 未完了の切替（WS 内の連番 number で指定）。
 // 繰り返しタスクを「完了」にした瞬間は、そのタスクは完了のまま残し、次回分を1件生成する。
-apiTasksRouter.post("/:id/toggle", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
-  const id = parseId(req.params.id);
+apiTasksRouter.post("/:number/toggle", async (req, res) => {
+  const { workspaceId } = resolveWorkspace(req);
+  const number = parseId(req.params.number);
 
-  const existing = await prisma.task.findFirst({ where: { id, workspaceId } });
-  if (!existing) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
+  const existing = await findTaskByNumber(workspaceId, number);
 
   const completing = existing.status !== "DONE"; // 未完了 → 完了 への遷移か
   const task = await prisma.task.update({
-    where: { id },
+    where: { id: existing.id },
     data: { status: completing ? "DONE" : "TODO" },
     include: taskInclude,
   });
@@ -437,27 +507,25 @@ async function regenerateRecurringTask(
   const position = await prisma.task.count({
     where: { workspaceId, parentId: source.parentId ?? null },
   });
-  await prisma.task.create({
-    data: {
-      title: source.title,
-      description: source.description,
-      status: "TODO",
-      priority: source.priority as any,
-      dueDate: nextDue,
-      assigneeId: source.assigneeId,
-      assigneeAgentId: source.assigneeAgentId,
-      parentId: source.parentId ?? null,
-      position,
-      recurrenceRule: source.recurrenceRule,
-      recurrenceParentId: source.id,
-      workspaceId,
-      creatorId: source.creatorId,
-      ...(tags.length > 0
-        ? { taskTags: { create: tags.map((t) => ({ tagId: t.tagId })) } }
-        : {}),
-    },
+  await createTaskWithNumber({
+    title: source.title,
+    description: source.description,
+    status: "TODO",
+    priority: source.priority as any,
+    dueDate: nextDue,
+    assigneeId: source.assigneeId,
+    assigneeAgentId: source.assigneeAgentId,
+    parentId: source.parentId ?? null,
+    position,
+    recurrenceRule: source.recurrenceRule,
+    recurrenceParentId: source.id,
+    workspaceId,
+    creatorId: source.creatorId,
+    ...(tags.length > 0
+      ? { taskTags: { create: tags.map((t) => ({ tagId: t.tagId })) } }
+      : {}),
   });
 }
 
-// コメントはタスク配下にネスト（/api/tasks/:taskId/comments）
-apiTasksRouter.use("/:taskId/comments", apiCommentsRouter);
+// コメントはタスク配下にネスト（/api/w/:wsPublicId/tasks/:number/comments）
+apiTasksRouter.use("/:number/comments", apiCommentsRouter);

@@ -1,23 +1,14 @@
 import { useNavigate } from "react-router-dom";
-import { useMe } from "../queries/auth";
-import { useActivateWorkspace } from "../queries/workspaces";
 import type { Task } from "../types";
 
 // 集約ビュー（メイン画面のダッシュボード/カレンダー）からタスクを開くための遷移フック。
-// タスク詳細（/api/tasks/:id）はアクティブなワークスペースに限定されるため、
-// 別ワークスペースのタスクを開くときは、そのWSをアクティブ化してから詳細へ遷移する。
+// タスクは複数ワークスペースにまたがるため、そのタスクの所属WS（publicId）と WS 内連番（number）で
+// URL を組み立てて詳細へ遷移する（Phase 16: URL 駆動。セッションのアクティブWS切替は不要）。
 export function useOpenTask() {
   const navigate = useNavigate();
-  const activate = useActivateWorkspace();
-  const meQ = useMe();
-  const activeId = meQ.data?.activeWorkspace?.id;
 
-  return (task: Pick<Task, "id" | "workspace">) => {
-    const wsId = task.workspace?.id;
-    if (wsId && wsId !== activeId) {
-      activate.mutate(wsId, { onSuccess: () => navigate(`/tasks/${task.id}`) });
-    } else {
-      navigate(`/tasks/${task.id}`);
-    }
+  return (task: Pick<Task, "number" | "workspace">) => {
+    const ws = task.workspace?.publicId;
+    if (ws && task.number != null) navigate(`/w/${ws}/tasks/${task.number}`);
   };
 }

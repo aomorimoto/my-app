@@ -24,12 +24,12 @@ export interface TaskFormSeed {
 // タスク／サブタスク追加フォーム。
 // - トップレベル（既定）: 折りたたみカード（<details>）で表示する。
 // - embedded=true: カード枠を持たず、フォーム本体だけを描画する（サブタスク欄への埋め込み用）。
-// - parentId 指定時はサブタスクとして作成し、seed の値を初期値にする（親からの引き継ぎ）。
+// - parentNumber 指定時はサブタスクとして作成し、seed の値を初期値にする（親からの引き継ぎ）。
 export default function TaskForm({
   members,
   agents,
   tags,
-  parentId,
+  parentNumber,
   seed,
   embedded = false,
   summaryLabel = "タスクを追加",
@@ -38,7 +38,7 @@ export default function TaskForm({
   members: Member[];
   agents: Agent[];
   tags: Tag[];
-  parentId?: number;
+  parentNumber?: number;
   seed?: TaskFormSeed;
   embedded?: boolean;
   summaryLabel?: string;
@@ -70,7 +70,7 @@ export default function TaskForm({
         ...parseAssignee(assignee),
         tagIds,
         recurrenceRule: recurrenceRule || null,
-        ...(parentId != null ? { parentId } : {}),
+        ...(parentNumber != null ? { parentNumber } : {}),
       },
       {
         onSuccess: () => {

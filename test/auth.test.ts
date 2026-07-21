@@ -6,13 +6,19 @@ beforeEach(resetDb);
 afterAll(closeDb);
 
 describe("auth API", () => {
-  it("signup すると 201 で、/me が本人と OWNER ワークスペースを返す", async () => {
+  it("signup すると 201 で、/me が本人を返し OWNER の個人ワークスペースが作られる", async () => {
     const { agent } = await signupAgent({ username: "alice", name: "アリス" });
 
     const me = await agent.get("/api/auth/me");
     expect(me.status).toBe(200);
     expect(me.body.user.username).toBe("alice");
-    expect(me.body.activeWorkspace).toMatchObject({ role: "OWNER" });
+    // Phase 16: /me は activeWorkspace を返さない。所属WSは /api/workspaces から引く。
+    expect(me.body.activeWorkspace).toBeUndefined();
+
+    const ws = await agent.get("/api/workspaces");
+    expect(ws.body.workspaces).toHaveLength(1);
+    expect(ws.body.workspaces[0].role).toBe("OWNER");
+    expect(typeof ws.body.workspaces[0].publicId).toBe("string");
   });
 
   it("重複ユーザーIDでの signup は 409", async () => {

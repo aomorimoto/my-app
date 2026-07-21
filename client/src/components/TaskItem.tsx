@@ -4,6 +4,7 @@ import type { TaskNode } from "../types";
 import { STATUS_LABEL, PRIORITY_LABEL, formatDate, memberLabel, statusClass } from "../labels";
 import { recurrenceLabel } from "../lib/recurrence";
 import { useToggleTask } from "../queries/tasks";
+import { useWsPublicId } from "../lib/workspaceContext";
 import UserAvatar from "./UserAvatar";
 import AgentIcon from "./AgentIcon";
 
@@ -28,6 +29,7 @@ export default function TaskItem({
   dnd?: TaskDnd;
 }) {
   const navigate = useNavigate();
+  const ws = useWsPublicId();
   const toggle = useToggleTask();
 
   const done = task.status === "DONE";
@@ -40,7 +42,7 @@ export default function TaskItem({
   const progressPct = childCount > 0 ? Math.round((doneSubtasks / childCount) * 100) : 0;
   const commentCount = task._count?.comments ?? 0;
 
-  const open = () => navigate(`/tasks/${task.id}`);
+  const open = () => navigate(`/w/${ws}/tasks/${task.number}`);
 
   return (
     <li
@@ -80,7 +82,7 @@ export default function TaskItem({
           title="完了/未完了を切替"
           onClick={(e) => {
             e.stopPropagation();
-            toggle.mutate(task.id);
+            toggle.mutate(task.number);
           }}
           disabled={toggle.isPending}
         >

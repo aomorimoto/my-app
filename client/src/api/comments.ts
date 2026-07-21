@@ -1,17 +1,18 @@
 import { apiFetch } from "./client";
 import type { Comment } from "../types";
 
-export const fetchComments = (taskId: number) =>
-  apiFetch<{ comments: Comment[] }>(`/api/tasks/${taskId}/comments`);
+// コメントはタスク配下（/api/w/:ws/tasks/:number/comments…）。タスクは WS 内の連番で指定。
+export const fetchComments = (ws: string, number: number) =>
+  apiFetch<{ comments: Comment[] }>(`/api/w/${ws}/tasks/${number}/comments`);
 
-export const createComment = (taskId: number, body: { body: string }) =>
-  apiFetch<{ comment: Comment }>(`/api/tasks/${taskId}/comments`, { method: "POST", body });
+export const createComment = (ws: string, number: number, body: { body: string }) =>
+  apiFetch<{ comment: Comment }>(`/api/w/${ws}/tasks/${number}/comments`, { method: "POST", body });
 
-export const updateComment = (taskId: number, id: number, body: { body: string }) =>
-  apiFetch<{ comment: Comment }>(`/api/tasks/${taskId}/comments/${id}`, {
+export const updateComment = (ws: string, number: number, id: number, body: { body: string }) =>
+  apiFetch<{ comment: Comment }>(`/api/w/${ws}/tasks/${number}/comments/${id}`, {
     method: "PATCH",
     body,
   });
 
-export const deleteComment = (taskId: number, id: number) =>
-  apiFetch<null>(`/api/tasks/${taskId}/comments/${id}`, { method: "DELETE" });
+export const deleteComment = (ws: string, number: number, id: number) =>
+  apiFetch<null>(`/api/w/${ws}/tasks/${number}/comments/${id}`, { method: "DELETE" });

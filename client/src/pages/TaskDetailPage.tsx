@@ -11,6 +11,7 @@ import { useAgents } from "../queries/agents";
 import { useTags } from "../queries/tags";
 import { useMe } from "../queries/auth";
 import { useMembers } from "../queries/workspaces";
+import { useWorkspace } from "../lib/workspaceContext";
 import { useDragList } from "../hooks/useDragList";
 import {
   STATUSES,
@@ -57,16 +58,17 @@ const INITIAL: FormState = {
 };
 
 export default function TaskDetailPage() {
-  const { id } = useParams();
-  const taskId = Number(id);
+  const { number } = useParams();
+  const taskNumber = Number(number);
   const navigate = useNavigate();
+  const { wsPublicId: ws, workspace } = useWorkspace();
 
-  const taskQ = useTask(taskId);
+  const taskQ = useTask(taskNumber);
   const agentsQ = useAgents();
   const tagsQ = useTags();
   const meQ = useMe();
-  const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
-  const update = useUpdateTask(taskId);
+  const membersQ = useMembers();
+  const update = useUpdateTask(taskNumber);
 
   // サブタスク操作（親と同じ tasks クエリを共有）
   const toggleSubtask = useToggleTask();
@@ -95,10 +97,12 @@ export default function TaskDetailPage() {
     }
   }, [taskQ.data]);
 
-  // サブタスクの D&D 並べ替え（フックは早期 return より前に呼ぶ）。
+  // サブタスクの D&D 並べ替え（フックは早期 return より前に呼ぶ）。順序は number の配列。
   const subtaskSource = taskQ.data?.task?.subtasks ?? EMPTY_NODES;
-  const subDrag = useDragList(subtaskSource, (ids) =>
-    reorder.mutate({ parentId: taskId, order: ids })
+  const subDrag = useDragList(
+    subtaskSource,
+    (s) => s.number,
+    (ids) => reorder.mutate({ parentNumber: taskNumber, order: ids })
   );
 
   if (taskQ.isLoading) return <p className="muted">読み込み中…</p>;
@@ -109,8 +113,11 @@ export default function TaskDetailPage() {
   const tags = tagsQ.data?.tags ?? [];
   const members = membersQ.data?.members ?? [];
   const isSubtask = task.parentId != null;
+  // 直近の親の番号（祖先チェーンの末尾）。サブタスクの戻り先・パンくずに使う。
+  const parentNumber = task.ancestors?.[task.ancestors.length - 1]?.number;
   // 保存/削除/キャンセル後の戻り先（サブタスクなら親タスク、そうでなければ一覧）。
-  const backTo = isSubtask ? `/tasks/${task.parentId}` : "/tasks";
+  const backTo =
+    isSubtask && parentNumber != null ? `/w/${ws}/tasks/${parentNumber}` : `/w/${ws}/tasks`;
   const subtasks = subDrag.items;
   // サブタスクの進捗（直下の子だけで集計した完了率）
   const subtaskDone = subtasks.filter((s) => s.status === "DONE").length;
@@ -141,21 +148,21 @@ export default function TaskDetailPage() {
   // タスク自身の削除（サブタスクも連鎖削除）。削除後は親か一覧へ戻る。
   const onDeleteTask = () => {
     if (window.confirm("このタスクを削除しますか？（サブタスクも一緒に削除されます）")) {
-      del.mutate(taskId, { onSuccess: () => navigate(backTo) });
+      del.mutate(taskNumber, { onSuccess: () => navigate(backTo) });
     }
   };
 
-  const onDeleteSubtask = (subId: number) => {
+  const onDeleteSubtask = (subNumber: number) => {
     if (window.confirm("このサブタスクを削除しますか？（配下のサブタスクも削除されます）")) {
-      deleteSubtask.mutate(subId);
+      deleteSubtask.mutate(subNumber);
     }
   };
 
   return (
     <>
-      {isSubtask && (
+      {isSubtask && parentNumber != null && (
         <p className="breadcrumb">
-          <Link to={`/tasks/${task.parentId}`}>← 親タスクへ</Link>
+          <Link to={`/w/${ws}/tasks/${parentNumber}`}>← 親タスクへ</Link>
         </p>
       )}
       <h1>{isSubtask ? "サブタスクを編集" : "タスクを編集"}</h1>
@@ -286,12 +293,12 @@ export default function TaskDetailPage() {
                     type="button"
                     className="check"
                     title="完了/未完了を切替"
-                    onClick={() => toggleSubtask.mutate(s.id)}
+                    onClick={() => toggleSubtask.mutate(s.number)}
                     disabled={toggleSubtask.isPending}
                   >
                     {done ? "☑" : "☐"}
                   </button>
-                  <Link to={`/tasks/${s.id}`} className="subtask-main">
+                  <Link to={`/w/${ws}/tasks/${s.number}`} className="subtask-main">
                     <span className="subtask-title">{s.title}</span>
                     <span className="subtask-meta">
                       <span className={`badge status ${statusClass(s.status)}`}>
@@ -336,7 +343,7 @@ export default function TaskDetailPage() {
                   <button
                     type="button"
                     className="btn-small danger"
-                    onClick={() => onDeleteSubtask(s.id)}
+                    onClick={() => onDeleteSubtask(s.number)}
                     disabled={deleteSubtask.isPending}
                   >
                     削除
@@ -349,7 +356,7 @@ export default function TaskDetailPage() {
         <h3 className="subtask-add-title">サブタスクを追加</h3>
         <TaskForm
           embedded
-          parentId={taskId}
+          parentNumber={taskNumber}
           members={members}
           agents={agents}
           tags={tags}
@@ -366,9 +373,9 @@ export default function TaskDetailPage() {
       {/* コメント */}
       <div className="card">
         <CommentThread
-          taskId={taskId}
+          taskNumber={taskNumber}
           currentUserId={meQ.data?.user?.id}
-          role={meQ.data?.activeWorkspace?.role}
+          role={workspace.role}
         />
       </div>
     </>

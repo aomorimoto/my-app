@@ -61,21 +61,23 @@ describe("recurrence API（完了トグルで次回分を生成）", () => {
   afterAll(closeDb);
 
   it("繰り返しタスクを完了にすると、次回期限の TODO が1件生成される", async () => {
-    const { agent } = await signupAgent();
-    const created = await agent.post("/api/tasks").send({
+    const { agent, wsPublicId } = await signupAgent();
+    const tasks = `/api/w/${wsPublicId}/tasks`;
+    const created = await agent.post(tasks).send({
       title: "週次レポート",
       dueDate: "2026-07-06", // 月曜
       recurrenceRule: "FREQ=WEEKLY;INTERVAL=1",
     });
     expect(created.status).toBe(201);
     const id = created.body.task.id;
+    const number = created.body.task.number;
     expect(created.body.task.recurrenceRule).toBe("FREQ=WEEKLY;INTERVAL=1");
 
-    const toggled = await agent.post(`/api/tasks/${id}/toggle`);
+    const toggled = await agent.post(`${tasks}/${number}/toggle`);
     expect(toggled.status).toBe(200);
     expect(toggled.body.task.status).toBe("DONE");
 
-    const list = await agent.get("/api/tasks");
+    const list = await agent.get(tasks);
     expect(list.body.tasks).toHaveLength(2);
     const next = list.body.tasks.find((t: any) => t.status === "TODO");
     expect(next).toBeTruthy();
@@ -85,27 +87,29 @@ describe("recurrence API（完了トグルで次回分を生成）", () => {
   });
 
   it("繰り返しなしのタスクを完了にしても複製されない", async () => {
-    const { agent } = await signupAgent();
-    const created = await agent.post("/api/tasks").send({ title: "単発", dueDate: "2026-07-06" });
-    await agent.post(`/api/tasks/${created.body.task.id}/toggle`);
-    const list = await agent.get("/api/tasks");
+    const { agent, wsPublicId } = await signupAgent();
+    const tasks = `/api/w/${wsPublicId}/tasks`;
+    const created = await agent.post(tasks).send({ title: "単発", dueDate: "2026-07-06" });
+    await agent.post(`${tasks}/${created.body.task.number}/toggle`);
+    const list = await agent.get(tasks);
     expect(list.body.tasks).toHaveLength(1);
   });
 
   it("期限のない繰り返しタスクは生成基準がないため複製されない", async () => {
-    const { agent } = await signupAgent();
+    const { agent, wsPublicId } = await signupAgent();
+    const tasks = `/api/w/${wsPublicId}/tasks`;
     const created = await agent
-      .post("/api/tasks")
+      .post(tasks)
       .send({ title: "期限なし繰り返し", recurrenceRule: "FREQ=DAILY" });
-    await agent.post(`/api/tasks/${created.body.task.id}/toggle`);
-    const list = await agent.get("/api/tasks");
+    await agent.post(`${tasks}/${created.body.task.number}/toggle`);
+    const list = await agent.get(tasks);
     expect(list.body.tasks).toHaveLength(1);
   });
 
   it("不正な繰り返しルールは 400", async () => {
-    const { agent } = await signupAgent();
+    const { agent, wsPublicId } = await signupAgent();
     const res = await agent
-      .post("/api/tasks")
+      .post(`/api/w/${wsPublicId}/tasks`)
       .send({ title: "x", recurrenceRule: "FREQ=HOURLY" });
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("VALIDATION");

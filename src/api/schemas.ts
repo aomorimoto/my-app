@@ -26,8 +26,9 @@ const assigneeAgentIdField = z.preprocess(
   z.coerce.number().int().positive().nullable().optional()
 );
 
-// 親タスクID: 数値文字列 → number、空文字 → null（トップレベル）。assigneeIdField と同型。
-const parentIdField = z.preprocess(
+// 親タスクの番号（WSごとの連番）: 数値文字列 → number、空文字 → null（トップレベル）。
+// Phase 16: 内部 id ではなく WS 内の number で親を指定する。
+const parentNumberField = z.preprocess(
   (v) => (v === "" ? null : v),
   z.coerce.number().int().positive().nullable().optional()
 );
@@ -89,7 +90,7 @@ export const taskCreateSchema = z.object({
   dueDate: dueDateField,
   assigneeId: assigneeIdField,
   assigneeAgentId: assigneeAgentIdField,
-  parentId: parentIdField,
+  parentNumber: parentNumberField,
   tagIds: tagIdsField,
   recurrenceRule: recurrenceRuleField,
 });
@@ -97,10 +98,10 @@ export const taskCreateSchema = z.object({
 // PATCH 用: 送られてきた項目だけ更新する（全項目を任意にする）。
 export const taskUpdateSchema = taskCreateSchema.partial();
 
-// 兄弟内の並べ替え（同一 parent のタスク id を表示順に並べた配列）。
-// parentId 省略/空文字 = トップレベル（null）。
+// 兄弟内の並べ替え（同一 parent のタスク number を表示順に並べた配列）。
+// parentNumber 省略/空文字 = トップレベル（null）。order も number（WSごとの連番）。
 export const taskReorderSchema = z.object({
-  parentId: parentIdField,
+  parentNumber: parentNumberField,
   order: z.array(z.coerce.number().int().positive()).min(1),
 });
 
@@ -173,9 +174,9 @@ export const workspaceCreateSchema = z.object({
   name: z.string().trim().min(1, "ワークスペース名を入力してください。").max(50),
 });
 
-// メイン画面のワークスペース並べ替え（表示順に並んだ workspaceId の配列）
+// メイン画面のワークスペース並べ替え（表示順に並んだ workspace publicId の配列）
 export const workspaceReorderSchema = z.object({
-  order: z.array(z.coerce.number().int().positive()).min(1),
+  order: z.array(z.string().min(1)).min(1),
 });
 
 // ワークスペース削除の確認。誤削除防止のため、対象のワークスペース名の再入力を必須にする。

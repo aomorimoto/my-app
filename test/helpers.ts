@@ -47,7 +47,21 @@ export async function signupAgent(
     (agent as any)[m] = (url: string) => orig(url).set("X-CSRF-Token", token);
   }
 
-  return { agent, username, password, name, csrfToken: token, userId: res.body.user.id as number };
+  // signup 時に作られる個人ワークスペースの publicId を取得する。
+  // Phase 16 以降、タスク等のリソースは URL 駆動の /api/w/:wsPublicId/... 配下にあるため、
+  // 各テストはこの publicId を使ってスコープ付きパスを組み立てる。
+  const wsRes = await agent.get("/api/workspaces");
+  const wsPublicId = wsRes.body.workspaces?.[0]?.publicId as string;
+
+  return {
+    agent,
+    username,
+    password,
+    name,
+    csrfToken: token,
+    userId: res.body.user.id as number,
+    wsPublicId,
+  };
 }
 
 // 指定ユーザーの OAuth アクセストークンを発行し、平文を返す（Bearer 認証テスト用）。

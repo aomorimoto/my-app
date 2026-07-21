@@ -9,19 +9,20 @@ import {
 } from "../queries/comments";
 
 // タスクのコメントスレッド。投稿者本人 or OWNER/ADMIN は編集・削除できる。
+// タスクは WS 内の連番（number）で識別する。
 export default function CommentThread({
-  taskId,
+  taskNumber,
   currentUserId,
   role,
 }: {
-  taskId: number;
+  taskNumber: number;
   currentUserId: number | undefined;
   role: Role | undefined;
 }) {
-  const commentsQ = useComments(taskId);
-  const create = useCreateComment(taskId);
-  const update = useUpdateComment(taskId);
-  const del = useDeleteComment(taskId);
+  const commentsQ = useComments(taskNumber);
+  const create = useCreateComment(taskNumber);
+  const update = useUpdateComment(taskNumber);
+  const del = useDeleteComment(taskNumber);
 
   const [body, setBody] = useState("");
   const [error, setError] = useState<string | null>(null);

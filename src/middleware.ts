@@ -1,17 +1,18 @@
 import type { Request, Response, NextFunction } from "express";
 import { prisma } from "./db";
 import { hashToken } from "./domain/token";
+import type { Role } from "../generated/prisma/enums";
 
-// express-session の型に userId と、選択中ワークスペース（workspaceId）を追加する
+// express-session の型に userId を追加する。
+// （アクティブWSの session 保持は Phase 16 で廃止。WS は URL の publicId から解決する。）
 declare module "express-session" {
   interface SessionData {
     userId?: number;
-    // 現在アクティブなワークスペース。未設定なら最初の所属を既定にして解決される。
-    workspaceId?: number;
   }
 }
 
-// Express の Request に、認証で解決したユーザーIDと Bearer 認証フラグを持たせる。
+// Express の Request に、認証で解決したユーザーIDと Bearer 認証フラグ、
+// および URL の :wsPublicId から解決したワークスペース文脈を持たせる。
 // userId は「session Cookie もしくは有効な Bearer トークン」から解決した単一の真実源。
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
@@ -19,6 +20,8 @@ declare global {
     interface Request {
       userId?: number;
       bearerAuth?: boolean; // Bearer トークンで認証されたリクエストか（CSRF 免除の判定に使う）
+      // scopeWorkspace ミドルウェアが URL の :wsPublicId から解決した対象ワークスペースと役割。
+      workspace?: { workspaceId: number; role: Role };
     }
   }
 }

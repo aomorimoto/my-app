@@ -1,15 +1,19 @@
 import { apiFetch } from "./client";
 import type { Agent } from "../types";
 
-export const fetchAgents = () => apiFetch<{ agents: Agent[] }>("/api/agents");
+// AI エージェントはワークスペース・スコープ配下（/api/w/:ws/agents…）。
+export const fetchAgents = (ws: string) => apiFetch<{ agents: Agent[] }>(`/api/w/${ws}/agents`);
 
-export const createAgent = (body: { name: string; color?: string; iconImage?: string | null }) =>
-  apiFetch<{ agent: Agent }>("/api/agents", { method: "POST", body });
+export const createAgent = (
+  ws: string,
+  body: { name: string; color?: string; iconImage?: string | null }
+) => apiFetch<{ agent: Agent }>(`/api/w/${ws}/agents`, { method: "POST", body });
 
 export const updateAgent = (
+  ws: string,
   id: number,
   body: { name?: string; color?: string; iconImage?: string | null }
-) => apiFetch<{ agent: Agent }>(`/api/agents/${id}`, { method: "PATCH", body });
+) => apiFetch<{ agent: Agent }>(`/api/w/${ws}/agents/${id}`, { method: "PATCH", body });
 
-export const deleteAgent = (id: number) =>
-  apiFetch<null>(`/api/agents/${id}`, { method: "DELETE" });
+export const deleteAgent = (ws: string, id: number) =>
+  apiFetch<null>(`/api/w/${ws}/agents/${id}`, { method: "DELETE" });

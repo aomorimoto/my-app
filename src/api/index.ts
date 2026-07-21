@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticate, requireAuthApi } from "../middleware";
+import { scopeWorkspace } from "../domain/workspace";
 import { doubleCsrfProtection, generateCsrfToken } from "../security/csrf";
 import { apiHealthRouter } from "./health";
 import { apiAuthRouter } from "./auth";
@@ -7,6 +8,7 @@ import { apiUsersRouter } from "./users";
 import { apiTasksRouter } from "./tasks";
 import { apiAgentsRouter } from "./agents";
 import { apiTagsRouter } from "./tags";
+import { apiMembersRouter } from "./members";
 import { apiWorkspacesRouter } from "./workspaces";
 import { apiDashboardRouter } from "./dashboard";
 import { apiHomeRouter } from "./home";
@@ -41,15 +43,23 @@ apiRouter.use((req, res, next) =>
   req.bearerAuth ? next() : doubleCsrfProtection(req, res, next)
 );
 
-// タスク・エージェント・ワークスペースはログイン必須（未ログインは JSON で 401）
+// --- 横断・非スコープ（ログイン必須） ---
 apiRouter.use("/users", requireAuthApi, apiUsersRouter);
-apiRouter.use("/tasks", requireAuthApi, apiTasksRouter);
-apiRouter.use("/agents", requireAuthApi, apiAgentsRouter);
-apiRouter.use("/tags", requireAuthApi, apiTagsRouter);
+// ワークスペース自体の一覧・作成・並べ替え・更新・削除（対象は body/:publicId で指定）
 apiRouter.use("/workspaces", requireAuthApi, apiWorkspacesRouter);
-apiRouter.use("/dashboard", requireAuthApi, apiDashboardRouter);
 // メイン画面（ホーム）用の横断ビュー（所属する全ワークスペースを統合）
 apiRouter.use("/home", requireAuthApi, apiHomeRouter);
+
+// --- ワークスペース・スコープ（/api/w/:wsPublicId/*） ---
+// scopeWorkspace が URL の publicId → 対象WS＋役割を req.workspace に解決する（非所属は 403）。
+// 配下のルータは resolveWorkspace(req) で対象WSを取得する（Phase 16: URL 駆動）。
+const wsScopedRouter = Router();
+wsScopedRouter.use("/tasks", apiTasksRouter);
+wsScopedRouter.use("/dashboard", apiDashboardRouter);
+wsScopedRouter.use("/agents", apiAgentsRouter);
+wsScopedRouter.use("/tags", apiTagsRouter);
+wsScopedRouter.use("/members", apiMembersRouter);
+apiRouter.use("/w/:wsPublicId", requireAuthApi, scopeWorkspace, wsScopedRouter);
 
 // 未定義の /api パスは JSON で 404
 apiRouter.use((_req, res) => {

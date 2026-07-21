@@ -23,27 +23,18 @@ export interface User {
   colorPrefs?: ColorPrefs | null;
 }
 
-// アクティブなワークスペース（/api/auth/me が返す）
-export interface ActiveWorkspace {
-  id: number;
-  name: string;
-  role: Role;
-  iconColor?: string | null;
-  iconImage?: string | null;
-}
-
-// 自分が所属するワークスペース（/api/workspaces の要素）
+// 自分が所属するワークスペース（/api/workspaces の要素）。
+// Phase 16: 露出する識別子は publicId（不透明）のみ。内部の連番 id は返さない。
 export interface Workspace {
-  id: number;
+  publicId: string;
   name: string;
-  ownerId: number;
   role: Role;
   memberCount: number;
   iconColor?: string | null;
   iconImage?: string | null;
 }
 
-// ワークスペースのメンバー（/api/workspaces/:id/members の要素）
+// ワークスペースのメンバー（/api/w/:ws/members の要素）
 export interface Member {
   id: number; // userId
   username: string;
@@ -90,6 +81,7 @@ export interface Comment {
 // 親と同じ表示情報（説明・状態・優先度・期限・担当者・タグ）を持ち、子を再帰的に含む。
 export interface TaskNode {
   id: number;
+  number: number; // WS 内の連番（#1,#2…）。URL・表示に使う（内部 id は React キー等に留める）
   title: string;
   description: string | null;
   status: Status;
@@ -111,6 +103,7 @@ export interface TaskNode {
 // JSON 経由なので日時は ISO 文字列で受け取る
 export interface Task {
   id: number;
+  number: number; // WS 内の連番（#1,#2…）。URL・表示に使う
   title: string;
   description: string | null;
   status: Status;
@@ -127,17 +120,18 @@ export interface Task {
   parentId: number | null; // 親タスク（サブタスク時に設定）
   recurrenceRule?: string | null; // 繰り返しルール（RRULE 風。null=なし）
   // 集約ビュー（メイン画面のダッシュボード/カレンダー）でのみ付与。どのWSのタスクかを示す。
-  workspace?: { id: number; name: string; iconColor?: string | null; iconImage?: string | null };
+  // 開くときは publicId ＋ number で URL を組み立てる（内部 id は露出しない）。
+  workspace?: { publicId: string; name: string; iconColor?: string | null; iconImage?: string | null };
   tags?: Tag[]; // API が taskTags を平坦化して返す
   subtasks?: TaskNode[]; // 子タスクツリー（再帰）
-  // パンくず用の祖先チェーン（root → 直近の親）。GET /api/tasks/:id でのみ付与。
-  ancestors?: { id: number; title: string }[];
+  // パンくず用の祖先チェーン（root → 直近の親）。GET /api/w/:ws/tasks/:number でのみ付与。各要素は number。
+  ancestors?: { number: number; title: string }[];
   _count?: { comments: number; subtasks?: number };
   createdAt: string;
   updatedAt: string;
 }
 
-// ダッシュボードのサマリ（/api/dashboard が返す）
+// ダッシュボードのサマリ（/api/w/:ws/dashboard が返す）
 export interface DashboardSummary {
   total: number;
   byStatus: Record<Status, number>;

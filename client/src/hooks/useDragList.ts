@@ -2,11 +2,13 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 
 // ネイティブ HTML5 D&D で並べ替えできるリストを扱う小さなフック。
 // - source（取得データ）が変わったら内部順序を同期する（ドラッグ中は保留）。
-// - ドロップ時に新しい id 配列で onReorder を呼ぶ（サーバ保存は呼び出し側で）。
+// - ドロップ時に新しいキー配列で onReorder を呼ぶ（サーバ保存は呼び出し側で）。
+// getKey は各要素の並べ替え識別子を返す（ワークスペース=publicId 文字列 / タスク=number 数値）。
 // 返り値の items を描画し、各要素に onDragStart(i) 等を割り当てる。
-export function useDragList<T extends { id: number }>(
+export function useDragList<T, K>(
   source: T[],
-  onReorder: (ids: number[]) => void
+  getKey: (item: T) => K,
+  onReorder: (keys: K[]) => void
 ) {
   const [items, setItems] = useState<T[]>(source);
   const dragIndex = useRef<number | null>(null);
@@ -43,7 +45,7 @@ export function useDragList<T extends { id: number }>(
     const [moved] = next.splice(from, 1);
     next.splice(index, 0, moved);
     setItems(next);
-    onReorder(next.map((it) => it.id));
+    onReorder(next.map(getKey));
   };
 
   const onDragEnd = () => {

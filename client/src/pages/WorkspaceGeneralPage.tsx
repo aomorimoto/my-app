@@ -1,19 +1,18 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMe } from "../queries/auth";
 import { useUpdateWorkspace, useDeleteWorkspace } from "../queries/workspaces";
+import { useWorkspace } from "../lib/workspaceContext";
 import { fileToSquareDataUrl } from "../lib/image";
 import WorkspaceIcon from "../components/WorkspaceIcon";
 
 // ワークスペースの一般設定（名前・アイコン）。編集は OWNER / ADMIN のみ。
+// 対象WSは URL 駆動の Context から取得する。
 export default function WorkspaceGeneralPage() {
-  const meQ = useMe();
-  const active = meQ.data?.activeWorkspace;
-  const activeId = active?.id;
-  const canManage = active?.role === "OWNER" || active?.role === "ADMIN";
-  const isOwner = active?.role === "OWNER";
-  const update = useUpdateWorkspace(activeId ?? 0);
-  const remove = useDeleteWorkspace(activeId ?? 0);
+  const { workspace: active } = useWorkspace();
+  const canManage = active.role === "OWNER" || active.role === "ADMIN";
+  const isOwner = active.role === "OWNER";
+  const update = useUpdateWorkspace(active.publicId);
+  const remove = useDeleteWorkspace(active.publicId);
   const navigate = useNavigate();
 
   const [name, setName] = useState("");
@@ -29,14 +28,10 @@ export default function WorkspaceGeneralPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (active) {
-      setName(active.name);
-      setIconColor(active.iconColor || "#6366f1");
-      setIconImage(active.iconImage ?? null);
-    }
+    setName(active.name);
+    setIconColor(active.iconColor || "#6366f1");
+    setIconImage(active.iconImage ?? null);
   }, [active]);
-
-  if (!active) return <p className="muted">読み込み中…</p>;
 
   const fail = (e: unknown) => {
     setMsg(null);

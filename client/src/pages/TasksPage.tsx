@@ -3,7 +3,6 @@ import type { Task, TaskFilters } from "../types";
 import { useTasks, useReorderTasks } from "../queries/tasks";
 import { useAgents } from "../queries/agents";
 import { useTags } from "../queries/tags";
-import { useMe } from "../queries/auth";
 import { useMembers } from "../queries/workspaces";
 import { useDragList } from "../hooks/useDragList";
 import TaskForm from "../components/TaskForm";
@@ -43,8 +42,7 @@ export default function TasksPage() {
   const tasksQ = useTasks(filters);
   const agentsQ = useAgents();
   const tagsQ = useTags();
-  const meQ = useMe();
-  const membersQ = useMembers(meQ.data?.activeWorkspace?.id);
+  const membersQ = useMembers();
 
   const reorder = useReorderTasks();
 
@@ -65,7 +63,11 @@ export default function TasksPage() {
     !(filters.q ?? "").trim() &&
     (tasksQ.data?.totalPages ?? 1) <= 1;
 
-  const drag = useDragList(tasks, (ids) => reorder.mutate({ parentId: null, order: ids }));
+  const drag = useDragList(
+    tasks,
+    (t) => t.number,
+    (ids) => reorder.mutate({ parentNumber: null, order: ids })
+  );
   const displayed = canReorder ? drag.items : tasks;
 
   const page = filters.page ?? 1;

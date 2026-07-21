@@ -1,4 +1,5 @@
 import { apiFetch } from "./client";
 import type { DashboardData } from "../types";
 
-export const fetchDashboard = () => apiFetch<DashboardData>("/api/dashboard");
+// ワークスペース単位のダッシュボード（/api/w/:ws/dashboard）。
+export const fetchDashboard = (ws: string) => apiFetch<DashboardData>(`/api/w/${ws}/dashboard`);

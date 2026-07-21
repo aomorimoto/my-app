@@ -2,7 +2,6 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   useWorkspaces,
-  useActivateWorkspace,
   useReorderWorkspaces,
   useCreateWorkspace,
 } from "../queries/workspaces";
@@ -23,7 +22,6 @@ const EMPTY_WORKSPACES: Workspace[] = [];
 export default function HomePage() {
   const navigate = useNavigate();
   const wsQ = useWorkspaces();
-  const activate = useActivateWorkspace();
   const reorder = useReorderWorkspaces();
   const createWs = useCreateWorkspace();
 
@@ -35,13 +33,11 @@ export default function HomePage() {
   const [wsName, setWsName] = useState("");
   const [wsError, setWsError] = useState<string | null>(null);
 
-  // クリックでそのワークスペースを開く（アクティブ化 → タスク画面へ）。
-  const openWs = (id: number) => {
-    activate.mutate(id, { onSuccess: () => navigate("/tasks") });
-  };
+  // クリックでそのワークスペースを開く（URL 駆動。index ルートが dashboard へ振り分ける）。
+  const openWs = (publicId: string) => navigate(`/w/${publicId}`);
 
-  // 並べ替えはドラッグ&ドロップ。新しい並び順の id 配列をサーバへ保存する。
-  const drag = useDragList(workspaces, (ids) => reorder.mutate(ids));
+  // 並べ替えはドラッグ&ドロップ。新しい並び順の publicId 配列をサーバへ保存する。
+  const drag = useDragList(workspaces, (w) => w.publicId, (ids) => reorder.mutate(ids));
 
   const onCreateWs = (e: FormEvent) => {
     e.preventDefault();
@@ -52,7 +48,7 @@ export default function HomePage() {
         onSuccess: (data: { workspace: Workspace }) => {
           setWsName("");
           // 作成したワークスペースを開く
-          activate.mutate(data.workspace.id, { onSuccess: () => navigate("/tasks") });
+          navigate(`/w/${data.workspace.publicId}`);
         },
         onError: (err) => setWsError(err.message || "作成に失敗しました。"),
       }
@@ -97,7 +93,7 @@ export default function HomePage() {
             <ul className="ws-list">
               {drag.items.map((w, i) => (
                 <li
-                  key={w.id}
+                  key={w.publicId}
                   className={`ws-card ${drag.overIndex === i ? "drag-over" : ""}`}
                   draggable
                   onDragStart={drag.onDragStart(i)}
@@ -108,7 +104,7 @@ export default function HomePage() {
                   <span className="ws-drag" title="ドラッグして並べ替え" aria-hidden>
                     ⠿
                   </span>
-                  <button type="button" className="ws-open" onClick={() => openWs(w.id)}>
+                  <button type="button" className="ws-open" onClick={() => openWs(w.publicId)}>
                     <span className="ws-name">
                       <WorkspaceIcon workspace={w} size={22} />
                       {w.name}
@@ -137,11 +133,7 @@ export default function HomePage() {
               required
             />
           </label>
-          <button
-            type="submit"
-            className="btn-primary"
-            disabled={createWs.isPending || activate.isPending}
-          >
+          <button type="submit" className="btn-primary" disabled={createWs.isPending}>
             作成して開く
           </button>
         </form>

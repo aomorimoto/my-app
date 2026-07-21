@@ -1,20 +1,28 @@
 import { Router } from "express";
 import { prisma } from "../db";
 import { requireMembership, requireRole } from "../domain/workspace";
+import { generatePublicId } from "../domain/publicId";
 import {
   workspaceCreateSchema,
   workspaceUpdateSchema,
   workspaceReorderSchema,
   workspaceDeleteSchema,
-  memberAddSchema,
-  memberRoleSchema,
 } from "./schemas";
-import { HttpError, parseId } from "./http";
+import { HttpError } from "./http";
 
+// ワークスペース自体の一覧・作成・並べ替え・更新・削除（非スコープ）。
+// 露出する識別子は publicId（不透明）。内部の連番 id はクライアント/AI に返さない。
+// メンバー管理は /api/w/:wsPublicId/members（src/api/members.ts）に分離した。
 export const apiWorkspacesRouter = Router();
 
+// publicId → 内部 id を解決する。未知なら 404。
+async function resolveWorkspaceId(publicId: string): Promise<number> {
+  const ws = await prisma.workspace.findUnique({ where: { publicId }, select: { id: true } });
+  if (!ws) throw new HttpError(404, "ワークスペースが見つかりません。", "NOT_FOUND");
+  return ws.id;
+}
+
 // 自分の所属ワークスペースを表示順（position → id）で取得して API 表現に整える。
-// メイン画面の並べ替え結果（Membership.position）を反映する。
 async function listWorkspaces(userId: number) {
   const memberships = await prisma.membership.findMany({
     where: { userId },
@@ -23,9 +31,8 @@ async function listWorkspaces(userId: number) {
       role: true,
       workspace: {
         select: {
-          id: true,
+          publicId: true,
           name: true,
-          ownerId: true,
           iconColor: true,
           iconImage: true,
           _count: { select: { members: true } },
@@ -34,46 +41,13 @@ async function listWorkspaces(userId: number) {
     },
   });
   return memberships.map((m) => ({
-    id: m.workspace.id,
+    publicId: m.workspace.publicId,
     name: m.workspace.name,
-    ownerId: m.workspace.ownerId,
     iconColor: m.workspace.iconColor,
     iconImage: m.workspace.iconImage,
     role: m.role,
     memberCount: m.workspace._count.members,
   }));
-}
-
-// メンバー一覧で取得するユーザー select（アバター表示用の色/画像も含める）
-const memberUserSelect = {
-  id: true,
-  username: true,
-  name: true,
-  avatarColor: true,
-  avatarImage: true,
-} as const;
-
-// メンバー情報を API 表現に整える（user + role を平坦化）
-function toMember(m: {
-  role: string;
-  joinedAt: Date;
-  user: {
-    id: number;
-    username: string;
-    name: string | null;
-    avatarColor?: string | null;
-    avatarImage?: string | null;
-  };
-}) {
-  return {
-    id: m.user.id,
-    username: m.user.username,
-    name: m.user.name,
-    avatarColor: m.user.avatarColor ?? null,
-    avatarImage: m.user.avatarImage ?? null,
-    role: m.role,
-    joinedAt: m.joinedAt,
-  };
 }
 
 // 自分が所属するワークスペース一覧（表示順）
@@ -82,7 +56,7 @@ apiWorkspacesRouter.get("/", async (req, res) => {
   res.json({ workspaces });
 });
 
-// ワークスペース作成（作成者が OWNER）。表示順は末尾に追加する。
+// ワークスペース作成（作成者が OWNER）。表示順は末尾に追加。publicId をアプリ側で採番。
 apiWorkspacesRouter.post("/", async (req, res) => {
   const userId = req.userId!;
   const { name } = workspaceCreateSchema.parse(req.body);
@@ -92,11 +66,12 @@ apiWorkspacesRouter.post("/", async (req, res) => {
 
   const workspace = await prisma.workspace.create({
     data: {
+      publicId: generatePublicId(),
       name,
       ownerId: userId,
       members: { create: { userId, role: "OWNER", position } },
     },
-    select: { id: true, name: true, ownerId: true, iconColor: true, iconImage: true },
+    select: { publicId: true, name: true, iconColor: true, iconImage: true },
   });
 
   res.status(201).json({
@@ -104,10 +79,35 @@ apiWorkspacesRouter.post("/", async (req, res) => {
   });
 });
 
-// ワークスペースの更新（名前・アイコン）。OWNER / ADMIN のみ。
-apiWorkspacesRouter.patch("/:id", async (req, res) => {
+// メイン画面のワークスペース並べ替え（自分の Membership.position を publicId の配列順で更新）。
+apiWorkspacesRouter.post("/reorder", async (req, res) => {
   const userId = req.userId!;
-  const id = parseId(req.params.id);
+  const { order } = workspaceReorderSchema.parse(req.body);
+
+  // 自分の所属を publicId → workspaceId に引くマップ（非所属/未知の publicId は無視される）。
+  const memberships = await prisma.membership.findMany({
+    where: { userId },
+    select: { workspaceId: true, workspace: { select: { publicId: true } } },
+  });
+  const idByPublic = new Map(memberships.map((m) => [m.workspace.publicId, m.workspaceId]));
+
+  await prisma.$transaction(
+    order.map((publicId, index) =>
+      prisma.membership.updateMany({
+        where: { userId, workspaceId: idByPublic.get(publicId) ?? -1 },
+        data: { position: index },
+      })
+    )
+  );
+
+  const workspaces = await listWorkspaces(userId);
+  res.json({ workspaces });
+});
+
+// ワークスペースの更新（名前・アイコン）。OWNER / ADMIN のみ。
+apiWorkspacesRouter.patch("/:publicId", async (req, res) => {
+  const userId = req.userId!;
+  const id = await resolveWorkspaceId(req.params.publicId);
   const role = await requireMembership(userId, id);
   requireRole(role, ["OWNER", "ADMIN"]);
   const input = workspaceUpdateSchema.parse(req.body);
@@ -121,9 +121,8 @@ apiWorkspacesRouter.patch("/:id", async (req, res) => {
     where: { id },
     data,
     select: {
-      id: true,
+      publicId: true,
       name: true,
-      ownerId: true,
       iconColor: true,
       iconImage: true,
       _count: { select: { members: true } },
@@ -131,9 +130,8 @@ apiWorkspacesRouter.patch("/:id", async (req, res) => {
   });
   res.json({
     workspace: {
-      id: workspace.id,
+      publicId: workspace.publicId,
       name: workspace.name,
-      ownerId: workspace.ownerId,
       iconColor: workspace.iconColor,
       iconImage: workspace.iconImage,
       role,
@@ -144,9 +142,9 @@ apiWorkspacesRouter.patch("/:id", async (req, res) => {
 
 // ワークスペース削除（OWNER のみ）。誤削除防止のため、確認用に入力された名前の一致を必須にする。
 // 配下のタスク/タグ/エージェント/メンバー/コメントは FK の onDelete: Cascade で連鎖削除される。
-apiWorkspacesRouter.delete("/:id", async (req, res) => {
+apiWorkspacesRouter.delete("/:publicId", async (req, res) => {
   const userId = req.userId!;
-  const id = parseId(req.params.id);
+  const id = await resolveWorkspaceId(req.params.publicId);
   const role = await requireMembership(userId, id);
   requireRole(role, ["OWNER"]);
 
@@ -174,153 +172,5 @@ apiWorkspacesRouter.delete("/:id", async (req, res) => {
   }
 
   await prisma.workspace.delete({ where: { id } });
-
-  // 削除したワークスペースがセッションのアクティブWSだった場合は選択を解除し、
-  // 次回リクエストで別の所属ワークスペースへ再解決させる。
-  if (req.session.workspaceId === id) {
-    req.session.workspaceId = undefined;
-  }
-
-  res.status(204).end();
-});
-
-// メイン画面のワークスペース並べ替え（自分の Membership.position を配列順で更新）。
-apiWorkspacesRouter.post("/reorder", async (req, res) => {
-  const userId = req.userId!;
-  const { order } = workspaceReorderSchema.parse(req.body);
-
-  // 自分の所属分だけ position を配列の添字に更新（他人/非所属の id は 0 件マッチで無視）。
-  await prisma.$transaction(
-    order.map((workspaceId, index) =>
-      prisma.membership.updateMany({
-        where: { userId, workspaceId },
-        data: { position: index },
-      })
-    )
-  );
-
-  const workspaces = await listWorkspaces(userId);
-  res.json({ workspaces });
-});
-
-// アクティブなワークスペースを切り替える（所属を検証してセッションに保存）
-apiWorkspacesRouter.post("/:id/activate", async (req, res) => {
-  const userId = req.userId!;
-  const id = parseId(req.params.id);
-  const role = await requireMembership(userId, id);
-
-  req.session.workspaceId = id;
-  const ws = await prisma.workspace.findUnique({
-    where: { id },
-    select: { id: true, name: true, iconColor: true, iconImage: true },
-  });
-  res.json({
-    activeWorkspace: ws
-      ? { id: ws.id, name: ws.name, role, iconColor: ws.iconColor, iconImage: ws.iconImage }
-      : null,
-  });
-});
-
-// メンバー一覧（メンバーなら誰でも閲覧可）
-apiWorkspacesRouter.get("/:id/members", async (req, res) => {
-  const userId = req.userId!;
-  const id = parseId(req.params.id);
-  await requireMembership(userId, id);
-
-  const members = await prisma.membership.findMany({
-    where: { workspaceId: id },
-    orderBy: { id: "asc" },
-    select: {
-      role: true,
-      joinedAt: true,
-      user: { select: memberUserSelect },
-    },
-  });
-  res.json({ members: members.map(toMember) });
-});
-
-// メンバー追加（ユーザーIDで既存ユーザーを直接追加。OWNER / ADMIN のみ）
-apiWorkspacesRouter.post("/:id/members", async (req, res) => {
-  const userId = req.userId!;
-  const id = parseId(req.params.id);
-  const role = await requireMembership(userId, id);
-  requireRole(role, ["OWNER", "ADMIN"]);
-  const { username, role: newRole } = memberAddSchema.parse(req.body);
-
-  const target = await prisma.user.findUnique({
-    where: { username },
-    select: memberUserSelect,
-  });
-  if (!target) {
-    throw new HttpError(404, "そのユーザーIDのユーザーが見つかりません。", "USER_NOT_FOUND");
-  }
-
-  const existing = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId: target.id, workspaceId: id } },
-  });
-  if (existing) throw new HttpError(409, "このユーザーは既にメンバーです。", "ALREADY_MEMBER");
-
-  const membership = await prisma.membership.create({
-    data: { userId: target.id, workspaceId: id, role: newRole ?? "MEMBER" },
-    select: { role: true, joinedAt: true },
-  });
-  res.status(201).json({ member: toMember({ ...membership, user: target }) });
-});
-
-// 役割変更（OWNER / ADMIN のみ。OWNER の役割は不変）
-apiWorkspacesRouter.patch("/:id/members/:userId", async (req, res) => {
-  const actingUserId = req.userId!;
-  const id = parseId(req.params.id);
-  const targetUserId = parseId(req.params.userId);
-  const role = await requireMembership(actingUserId, id);
-  requireRole(role, ["OWNER", "ADMIN"]);
-  const { role: newRole } = memberRoleSchema.parse(req.body);
-
-  const target = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId: targetUserId, workspaceId: id } },
-    select: { role: true },
-  });
-  if (!target) throw new HttpError(404, "メンバーが見つかりません。", "NOT_FOUND");
-  if (target.role === "OWNER") {
-    throw new HttpError(403, "オーナーの役割は変更できません。", "FORBIDDEN");
-  }
-
-  const updated = await prisma.membership.update({
-    where: { userId_workspaceId: { userId: targetUserId, workspaceId: id } },
-    data: { role: newRole },
-    select: {
-      role: true,
-      joinedAt: true,
-      user: { select: memberUserSelect },
-    },
-  });
-  res.json({ member: toMember(updated) });
-});
-
-// メンバー削除（OWNER / ADMIN のみ。OWNER は削除不可。担当タスクは未割当に戻す）
-apiWorkspacesRouter.delete("/:id/members/:userId", async (req, res) => {
-  const actingUserId = req.userId!;
-  const id = parseId(req.params.id);
-  const targetUserId = parseId(req.params.userId);
-  const role = await requireMembership(actingUserId, id);
-  requireRole(role, ["OWNER", "ADMIN"]);
-
-  const target = await prisma.membership.findUnique({
-    where: { userId_workspaceId: { userId: targetUserId, workspaceId: id } },
-    select: { role: true },
-  });
-  if (!target) throw new HttpError(404, "メンバーが見つかりません。", "NOT_FOUND");
-  if (target.role === "OWNER") throw new HttpError(403, "オーナーは削除できません。", "FORBIDDEN");
-
-  // 担当タスクを未割当に戻してから Membership を削除（assignee FK は User 参照のため明示的に）
-  await prisma.$transaction([
-    prisma.task.updateMany({
-      where: { workspaceId: id, assigneeId: targetUserId },
-      data: { assigneeId: null },
-    }),
-    prisma.membership.delete({
-      where: { userId_workspaceId: { userId: targetUserId, workspaceId: id } },
-    }),
-  ]);
   res.status(204).end();
 });

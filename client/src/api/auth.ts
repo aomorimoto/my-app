@@ -1,9 +1,9 @@
 import { apiFetch } from "./client";
-import type { User, ActiveWorkspace, ColorPrefs } from "../types";
+import type { User, ColorPrefs } from "../types";
 
+// Phase 16: /me は activeWorkspace を返さない（WS は URL の publicId で解決する）。
 export interface MeResponse {
   user: User | null;
-  activeWorkspace: ActiveWorkspace | null;
 }
 
 export const fetchMe = () => apiFetch<MeResponse>("/api/auth/me");

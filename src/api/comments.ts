@@ -4,17 +4,18 @@ import { resolveWorkspace } from "../domain/workspace";
 import { commentCreateSchema, commentUpdateSchema } from "./schemas";
 import { HttpError, parseId } from "./http";
 
-// タスク配下にネストするコメントルータ（/api/tasks/:taskId/comments）。
-// 親ルータの :taskId を読むため mergeParams を有効にする。
+// タスク配下にネストするコメントルータ（/api/w/:wsPublicId/tasks/:number/comments）。
+// 親ルータの :number を読むため mergeParams を有効にする。
 export const apiCommentsRouter = Router({ mergeParams: true });
 
-// 対象ワークスペースにタスクが存在するか確認する。無ければ 404。
-async function assertTaskInWorkspace(workspaceId: number, taskId: number) {
-  const task = await prisma.task.findFirst({
-    where: { id: taskId, workspaceId },
+// 対象ワークスペース内のタスクを連番（number）で解決し、内部 id を返す。無ければ 404。
+async function resolveTaskId(workspaceId: number, number: number): Promise<number> {
+  const task = await prisma.task.findUnique({
+    where: { workspaceId_number: { workspaceId, number } },
     select: { id: true },
   });
   if (!task) throw new HttpError(404, "タスクが見つかりません。", "NOT_FOUND");
+  return task.id;
 }
 
 // コメントの公開表現に整える（投稿者情報を含める）
@@ -24,9 +25,9 @@ const commentInclude = {
 
 // コメント一覧（古い順）。メンバーなら閲覧可。
 apiCommentsRouter.get("/", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
-  const taskId = parseId(req.params.taskId);
-  await assertTaskInWorkspace(workspaceId, taskId);
+  const { workspaceId } = resolveWorkspace(req);
+  const number = parseId(req.params.number);
+  const taskId = await resolveTaskId(workspaceId, number);
 
   const comments = await prisma.comment.findMany({
     where: { taskId },
@@ -38,10 +39,10 @@ apiCommentsRouter.get("/", async (req, res) => {
 
 // コメント投稿。メンバーなら誰でも可。
 apiCommentsRouter.post("/", async (req, res) => {
-  const { workspaceId } = await resolveWorkspace(req);
+  const { workspaceId } = resolveWorkspace(req);
   const userId = req.userId!;
-  const taskId = parseId(req.params.taskId);
-  await assertTaskInWorkspace(workspaceId, taskId);
+  const number = parseId(req.params.number);
+  const taskId = await resolveTaskId(workspaceId, number);
   const { body } = commentCreateSchema.parse(req.body);
 
   const comment = await prisma.comment.create({
@@ -52,14 +53,13 @@ apiCommentsRouter.post("/", async (req, res) => {
 });
 
 // 対象コメントを取得し、編集/削除権限（投稿者本人 or OWNER/ADMIN）を検証する。
+// taskId は呼び出し側で resolveTaskId 済み（対象WSに存在するタスク）。
 async function getEditableComment(
-  workspaceId: number,
   taskId: number,
   commentId: number,
   userId: number,
   role: string
 ) {
-  await assertTaskInWorkspace(workspaceId, taskId);
   const comment = await prisma.comment.findFirst({ where: { id: commentId, taskId } });
   if (!comment) throw new HttpError(404, "コメントが見つかりません。", "NOT_FOUND");
   const canManage = comment.authorId === userId || role === "OWNER" || role === "ADMIN";
@@ -71,11 +71,12 @@ async function getEditableComment(
 
 // コメント編集（投稿者本人 or OWNER/ADMIN）
 apiCommentsRouter.patch("/:commentId", async (req, res) => {
-  const { workspaceId, role } = await resolveWorkspace(req);
+  const { workspaceId, role } = resolveWorkspace(req);
   const userId = req.userId!;
-  const taskId = parseId(req.params.taskId);
+  const number = parseId(req.params.number);
+  const taskId = await resolveTaskId(workspaceId, number);
   const commentId = parseId(req.params.commentId);
-  await getEditableComment(workspaceId, taskId, commentId, userId, role);
+  await getEditableComment(taskId, commentId, userId, role);
   const { body } = commentUpdateSchema.parse(req.body);
 
   const comment = await prisma.comment.update({
@@ -88,11 +89,12 @@ apiCommentsRouter.patch("/:commentId", async (req, res) => {
 
 // コメント削除（投稿者本人 or OWNER/ADMIN）
 apiCommentsRouter.delete("/:commentId", async (req, res) => {
-  const { workspaceId, role } = await resolveWorkspace(req);
+  const { workspaceId, role } = resolveWorkspace(req);
   const userId = req.userId!;
-  const taskId = parseId(req.params.taskId);
+  const number = parseId(req.params.number);
+  const taskId = await resolveTaskId(workspaceId, number);
   const commentId = parseId(req.params.commentId);
-  await getEditableComment(workspaceId, taskId, commentId, userId, role);
+  await getEditableComment(taskId, commentId, userId, role);
 
   await prisma.comment.delete({ where: { id: commentId } });
   res.status(204).end();
